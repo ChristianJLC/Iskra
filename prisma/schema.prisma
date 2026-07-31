@@ -1,0 +1,132 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  createdAt    DateTime @default(now())
+
+  meals            MealEntry[]
+  exercises        ExerciseEntry[]
+  studies          StudyEntry[]
+  tasks            Task[]
+  financeSettings  FinanceSettings[]
+  financeEntries   FinanceEntry[]
+}
+
+enum MealType {
+  DESAYUNO
+  ALMUERZO
+  CENA
+}
+
+model MealEntry {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date        DateTime @default(now())
+  type        MealType
+  description String
+  notes       String?
+  completed   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@index([userId, date])
+}
+
+model ExerciseEntry {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date       DateTime @default(now())
+  activity   String
+  durationMinutes Int
+  completed  Boolean  @default(false)
+  notes      String?
+  createdAt  DateTime @default(now())
+
+  @@index([userId, date])
+}
+
+model StudyEntry {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date           DateTime @default(now())
+  subject        String
+  targetMinutes  Int
+  actualMinutes  Int      @default(0)
+  completed      Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  @@index([userId, date])
+}
+
+enum TaskPriority {
+  BAJA
+  MEDIA
+  ALTA
+}
+
+enum TaskRecurrence {
+  NINGUNA
+  DIARIA
+  SEMANAL
+  MENSUAL
+}
+
+model Task {
+  id          String         @id @default(cuid())
+  userId      String
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  dueDate     DateTime?
+  priority    TaskPriority   @default(MEDIA)
+  recurrence  TaskRecurrence @default(NINGUNA)
+  completed   Boolean        @default(false)
+  createdAt   DateTime       @default(now())
+
+  @@index([userId, completed])
+}
+
+model FinanceSettings {
+  id              String @id @default(cuid())
+  userId          String
+  user            User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  month           Int
+  year            Int
+  biweeklyIncome  Decimal @db.Decimal(12, 2)
+
+  @@unique([userId, month, year])
+}
+
+enum FinanceType {
+  INGRESO
+  EXTRA
+  GASTO
+}
+
+model FinanceEntry {
+  id          String      @id @default(cuid())
+  userId      String
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date        DateTime    @default(now())
+  type        FinanceType
+  amount      Decimal     @db.Decimal(12, 2)
+  description String?
+  createdAt   DateTime    @default(now())
+
+  @@index([userId, date])
+}

@@ -1,21 +1,16 @@
+import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { verifySession } from "@/lib/dal";
-import { formatShortDateEs } from "@/lib/date";
-import { ensureQuincenaIngresos } from "@/lib/finance";
-import { setBiweeklyIncome, addFinanceEntry, deleteFinanceEntry } from "@/actions/finance";
+import { formatMonthYearEs } from "@/lib/date";
+import { ensureQuincenaIngresos, getMonthBounds, getMonthTotals } from "@/lib/finance";
+import { setBiweeklyIncome, addFinanceEntry } from "@/actions/finance";
 import { Card } from "@/components/ui/card";
 import { Input, Label } from "@/components/ui/input";
 import { SubmitButton } from "@/components/submit-button";
 import { Button } from "@/components/ui/button";
-import { DeleteButton } from "@/components/delete-button";
 import { FinanceChart } from "@/components/finance-chart";
+import { FinanceEntryList } from "@/components/finance-entry-list";
 import { cn } from "@/lib/cn";
-
-const TYPE_LABELS: Record<string, string> = {
-  INGRESO: "Ingreso",
-  EXTRA: "Dinero Extra",
-  GASTO: "Gasto",
-};
 
 const currency = new Intl.NumberFormat("es-PE", { style: "currency", currency: "PEN" });
 
@@ -27,8 +22,7 @@ export default async function FinanzasPage() {
   const now = new Date();
   const month = now.getMonth() + 1;
   const year = now.getFullYear();
-  const monthStart = new Date(year, month - 1, 1);
-  const monthEnd = new Date(year, month, 1);
+  const { start: monthStart, end: monthEnd } = getMonthBounds(month, year);
 
   const [settings, entries] = await Promise.all([
     prisma.financeSettings.findUnique({
@@ -41,24 +35,18 @@ export default async function FinanzasPage() {
   ]);
 
   const biweeklyIncome = settings ? Number(settings.biweeklyIncome) : 0;
-  const ingresos = entries
-    .filter((e) => e.type === "INGRESO")
-    .reduce((sum, e) => sum + Number(e.amount), 0);
-  const extras = entries
-    .filter((e) => e.type === "EXTRA")
-    .reduce((sum, e) => sum + Number(e.amount), 0);
-  const gastos = entries
-    .filter((e) => e.type === "GASTO")
-    .reduce((sum, e) => sum + Number(e.amount), 0);
-  const balance = ingresos + extras - gastos;
+  const { ingresos, extras, gastos, balance } = getMonthTotals(entries);
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold text-foreground">Finanzas</h1>
-        <p className="text-sm text-muted capitalize">
-          {new Intl.DateTimeFormat("es", { month: "long", year: "numeric" }).format(now)}
-        </p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold text-foreground">Finanzas</h1>
+          <p className="text-sm text-muted">{formatMonthYearEs(month, year)}</p>
+        </div>
+        <Link href="/finanzas/historial" className="text-sm font-medium text-accent hover:underline">
+          Ver historial
+        </Link>
       </div>
 
       <Card className="space-y-4">
@@ -144,39 +132,7 @@ export default async function FinanzasPage() {
         </form>
       </Card>
 
-      <div className="space-y-3">
-        {entries.length === 0 && (
-          <p className="text-sm text-muted">Aún no registras movimientos este mes.</p>
-        )}
-
-        {entries.map((entry) => (
-          <Card key={entry.id} className="flex items-center gap-3 py-3">
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <span
-                  className={cn(
-                    "rounded-full px-2 py-0.5 text-[10px] font-medium",
-                    entry.type === "GASTO"
-                      ? "bg-danger/10 text-danger"
-                      : "bg-accent/15 text-accent"
-                  )}
-                >
-                  {TYPE_LABELS[entry.type]}
-                </span>
-                <span className="text-sm font-medium text-foreground">
-                  {entry.type === "GASTO" ? "-" : "+"}
-                  {currency.format(Number(entry.amount))}
-                </span>
-              </div>
-              {entry.description && (
-                <p className="mt-0.5 text-xs text-muted">{entry.description}</p>
-              )}
-              <p className="mt-0.5 text-xs text-muted">{formatShortDateEs(entry.date)}</p>
-            </div>
-            <DeleteButton action={deleteFinanceEntry.bind(null, entry.id)} />
-          </Card>
-        ))}
-      </div>
+      <FinanceEntryList entries={entries} />
     </div>
   );
 }

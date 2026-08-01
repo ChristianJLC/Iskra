@@ -17,12 +17,12 @@ model User {
   name         String
   createdAt    DateTime @default(now())
 
-  meals            MealEntry[]
-  exercises        ExerciseEntry[]
-  studies          StudyEntry[]
-  tasks            Task[]
-  financeSettings  FinanceSettings[]
-  financeEntries   FinanceEntry[]
+  meals           MealEntry[]
+  exercises       ExerciseEntry[]
+  studies         StudyEntry[]
+  tasks           Task[]
+  financeSettings FinanceSettings[]
+  financeEntries  FinanceEntry[]
 }
 
 enum MealType {
@@ -46,29 +46,29 @@ model MealEntry {
 }
 
 model ExerciseEntry {
-  id         String   @id @default(cuid())
-  userId     String
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  date       DateTime @default(now())
-  activity   String
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date            DateTime @default(now())
+  activity        String
   durationMinutes Int
-  completed  Boolean  @default(false)
-  notes      String?
-  createdAt  DateTime @default(now())
+  completed       Boolean  @default(false)
+  notes           String?
+  createdAt       DateTime @default(now())
 
   @@index([userId, date])
 }
 
 model StudyEntry {
-  id             String   @id @default(cuid())
-  userId         String
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  date           DateTime @default(now())
-  subject        String
-  targetMinutes  Int
-  actualMinutes  Int      @default(0)
-  completed      Boolean  @default(false)
-  createdAt      DateTime @default(now())
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date          DateTime @default(now())
+  subject       String
+  targetMinutes Int
+  actualMinutes Int      @default(0)
+  completed     Boolean  @default(false)
+  createdAt     DateTime @default(now())
 
   @@index([userId, date])
 }
@@ -79,35 +79,27 @@ enum TaskPriority {
   ALTA
 }
 
-enum TaskRecurrence {
-  NINGUNA
-  DIARIA
-  SEMANAL
-  MENSUAL
-}
-
 model Task {
-  id          String         @id @default(cuid())
+  id          String       @id @default(cuid())
   userId      String
-  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   title       String
   description String?
   dueDate     DateTime?
-  priority    TaskPriority   @default(MEDIA)
-  recurrence  TaskRecurrence @default(NINGUNA)
-  completed   Boolean        @default(false)
-  createdAt   DateTime       @default(now())
+  priority    TaskPriority @default(MEDIA)
+  completed   Boolean      @default(false)
+  createdAt   DateTime     @default(now())
 
   @@index([userId, completed])
 }
 
 model FinanceSettings {
-  id              String @id @default(cuid())
-  userId          String
-  user            User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  month           Int
-  year            Int
-  biweeklyIncome  Decimal @db.Decimal(12, 2)
+  id             String  @id @default(cuid())
+  userId         String
+  user           User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  month          Int
+  year           Int
+  biweeklyIncome Decimal @db.Decimal(12, 2)
 
   @@unique([userId, month, year])
 }

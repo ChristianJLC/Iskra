@@ -17,12 +17,14 @@ model User {
   name         String
   createdAt    DateTime @default(now())
 
-  meals           MealEntry[]
-  exercises       ExerciseEntry[]
-  studies         StudyEntry[]
-  tasks           Task[]
-  financeSettings FinanceSettings[]
-  financeEntries  FinanceEntry[]
+  meals              MealEntry[]
+  studies            StudyEntry[]
+  tasks              Task[]
+  financeSettings    FinanceSettings[]
+  financeEntries     FinanceEntry[]
+  recurringBills     RecurringBill[]
+  workoutSchedule    WorkoutSchedule?
+  workoutCompletions WorkoutCompletion[]
 }
 
 enum MealType {
@@ -39,23 +41,47 @@ model MealEntry {
   type        MealType
   description String
   notes       String?
+  calories    Int?
+  proteinG    Float?
+  carbsG      Float?
+  fatG        Float?
   completed   Boolean  @default(false)
   createdAt   DateTime @default(now())
 
   @@index([userId, date])
 }
 
-model ExerciseEntry {
-  id              String   @id @default(cuid())
-  userId          String
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  date            DateTime @default(now())
-  activity        String
-  durationMinutes Int
-  completed       Boolean  @default(false)
-  notes           String?
-  createdAt       DateTime @default(now())
+enum RoutineGroup {
+  DESCANSO
+  PECHO_BICEPS
+  ESPALDA_TRICEPS
+  PIERNAS_ABDOMINALES
+  BOMBEO
+}
 
+model WorkoutSchedule {
+  id        String       @id @default(cuid())
+  userId    String       @unique
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  monday    RoutineGroup @default(DESCANSO)
+  tuesday   RoutineGroup @default(DESCANSO)
+  wednesday RoutineGroup @default(DESCANSO)
+  thursday  RoutineGroup @default(DESCANSO)
+  friday    RoutineGroup @default(DESCANSO)
+  saturday  RoutineGroup @default(DESCANSO)
+  sunday    RoutineGroup @default(DESCANSO)
+  updatedAt DateTime     @updatedAt
+}
+
+model WorkoutCompletion {
+  id        String       @id @default(cuid())
+  userId    String
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date      DateTime
+  group     RoutineGroup
+  createdAt DateTime     @default(now())
+
+  @@unique([userId, date])
   @@index([userId, date])
 }
 
@@ -111,14 +137,33 @@ enum FinanceType {
 }
 
 model FinanceEntry {
-  id          String      @id @default(cuid())
-  userId      String
-  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  date        DateTime    @default(now())
-  type        FinanceType
-  amount      Decimal     @db.Decimal(12, 2)
-  description String?
-  createdAt   DateTime    @default(now())
+  id              String         @id @default(cuid())
+  userId          String
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date            DateTime       @default(now())
+  type            FinanceType
+  amount          Decimal        @db.Decimal(12, 2)
+  description     String?
+  recurringBillId String?
+  recurringBill   RecurringBill? @relation(fields: [recurringBillId], references: [id], onDelete: SetNull)
+  createdAt       DateTime       @default(now())
 
   @@index([userId, date])
+}
+
+model RecurringBill {
+  id          String       @id @default(cuid())
+  userId      String
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  amount      Decimal      @db.Decimal(12, 2)
+  priority    TaskPriority @default(MEDIA)
+  startDay    Int
+  endDay      Int?
+  createdAt   DateTime     @default(now())
+
+  payments FinanceEntry[]
+
+  @@index([userId])
 }

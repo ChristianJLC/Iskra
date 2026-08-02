@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { verifySession, getCurrentUser } from "@/lib/dal";
 import { startOfToday, endOfToday, formatDateEs } from "@/lib/date";
 import { ensureQuincenaIngresos } from "@/lib/finance";
+import { getTodayWorkout, ROUTINE_GROUP_LABELS } from "@/lib/exercise";
 import { Card } from "@/components/ui/card";
 
 const currency = new Intl.NumberFormat("es-PE", { style: "currency", currency: "PEN" });
@@ -21,16 +22,15 @@ export default async function ResumenPage() {
   const monthStart = new Date(year, month - 1, 1);
   const monthEnd = new Date(year, month, 1);
 
-  const [meals, exercises, studies, pendingTasks, financeEntries] = await Promise.all([
+  const [meals, todayWorkout, studies, pendingTasks, financeEntries] = await Promise.all([
     prisma.mealEntry.findMany({ where: { userId, date: today } }),
-    prisma.exerciseEntry.findMany({ where: { userId, date: today } }),
+    getTodayWorkout(userId),
     prisma.studyEntry.findMany({ where: { userId, date: today } }),
     prisma.task.count({ where: { userId, completed: false } }),
     prisma.financeEntry.findMany({ where: { userId, date: { gte: monthStart, lt: monthEnd } } }),
   ]);
 
   const mealsCompleted = meals.filter((m) => m.completed).length;
-  const exerciseMinutes = exercises.reduce((sum, e) => sum + e.durationMinutes, 0);
   const studyTarget = studies.reduce((sum, s) => sum + s.targetMinutes, 0);
   const studyActual = studies.reduce((sum, s) => sum + s.actualMinutes, 0);
 
@@ -57,8 +57,10 @@ export default async function ResumenPage() {
       href: "/ejercicio",
       icon: Dumbbell,
       title: "Ejercicio",
-      value: `${exerciseMinutes} min`,
-      hint: "registrados hoy",
+      value:
+        todayWorkout.group === "DESCANSO" ? "Descanso" : todayWorkout.completed ? "Completado" : "Pendiente",
+      hint:
+        todayWorkout.group === "DESCANSO" ? "hoy no toca rutina" : ROUTINE_GROUP_LABELS[todayWorkout.group],
     },
     {
       href: "/estudio",

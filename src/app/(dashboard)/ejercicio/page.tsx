@@ -1,91 +1,76 @@
+import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { verifySession } from "@/lib/dal";
-import { startOfToday, endOfToday, formatDateEs } from "@/lib/date";
-import { addExercise, toggleExercise, deleteExercise } from "@/actions/exercises";
+import { formatDateEs } from "@/lib/date";
+import { getCurrentWeekView, ROUTINE_GROUP_LABELS } from "@/lib/exercise";
+import { ROUTINE_GROUP_ICONS } from "@/lib/routine-groups";
+import { markWorkoutDone, unmarkWorkoutDone } from "@/actions/exercises";
 import { Card } from "@/components/ui/card";
-import { Input, Label } from "@/components/ui/input";
-import { SubmitButton } from "@/components/submit-button";
 import { ToggleCheckbox } from "@/components/toggle-checkbox";
-import { DeleteButton } from "@/components/delete-button";
+import { WorkoutScheduleForm } from "@/components/workout-schedule-form";
+import { cn } from "@/lib/cn";
 
 export default async function EjercicioPage() {
   const { userId } = await verifySession();
 
-  const exercises = await prisma.exerciseEntry.findMany({
-    where: { userId, date: { gte: startOfToday(), lt: endOfToday() } },
-    orderBy: { createdAt: "asc" },
-  });
-
-  const totalMinutes = exercises.reduce((sum, e) => sum + e.durationMinutes, 0);
+  const [schedule, week] = await Promise.all([
+    prisma.workoutSchedule.findUnique({ where: { userId } }),
+    getCurrentWeekView(userId),
+  ]);
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold text-foreground">Ejercicio</h1>
-        <p className="text-sm text-muted">{formatDateEs(new Date())}</p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold text-foreground">Ejercicio</h1>
+          <p className="text-sm text-muted">Tu rutina semanal</p>
+        </div>
+        <Link href="/ejercicio/historial" className="text-sm font-medium text-accent hover:underline">
+          Ver historial
+        </Link>
       </div>
 
-      <Card>
-        <form action={addExercise} className="space-y-4">
-          <div>
-            <Label htmlFor="activity">Actividad</Label>
-            <Input id="activity" name="activity" placeholder="Ej. Correr, pesas, yoga…" required />
-          </div>
-
-          <div>
-            <Label htmlFor="durationMinutes">Duración (minutos)</Label>
-            <Input
-              id="durationMinutes"
-              name="durationMinutes"
-              type="number"
-              min={1}
-              placeholder="30"
-              required
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="notes">Notas (opcional)</Label>
-            <Input id="notes" name="notes" placeholder="Series, distancia, intensidad…" />
-          </div>
-
-          <SubmitButton>Agregar ejercicio</SubmitButton>
-        </form>
-      </Card>
-
-      {exercises.length > 0 && (
-        <p className="text-sm text-muted">
-          Total de hoy: <span className="font-medium text-foreground">{totalMinutes} min</span>
-        </p>
-      )}
+      <WorkoutScheduleForm schedule={schedule} />
 
       <div className="space-y-3">
-        {exercises.length === 0 && (
-          <p className="text-sm text-muted">Aún no has registrado ejercicio hoy.</p>
-        )}
-
-        {exercises.map((exercise) => (
-          <Card key={exercise.id} className="flex items-start gap-3 py-4">
-            <ToggleCheckbox
-              checked={exercise.completed}
-              action={toggleExercise.bind(null, exercise.id, !exercise.completed)}
-            />
-            <div className="min-w-0 flex-1">
-              <p
-                className={
-                  exercise.completed
-                    ? "text-sm text-muted line-through"
-                    : "text-sm text-foreground"
-                }
+        {week.map(({ date, group, completed }) => {
+          const Icon = ROUTINE_GROUP_ICONS[group];
+          return (
+            <Card key={date.toISOString()} className="flex items-center gap-3 py-4">
+              <div
+                className={cn(
+                  "flex size-10 shrink-0 items-center justify-center rounded-lg",
+                  group === "DESCANSO" ? "bg-surface-hover text-muted" : "bg-accent/15 text-accent"
+                )}
               >
-                {exercise.activity}{" "}
-                <span className="text-xs text-muted">· {exercise.durationMinutes} min</span>
-              </p>
-              {exercise.notes && <p className="mt-0.5 text-xs text-muted">{exercise.notes}</p>}
-            </div>
-            <DeleteButton action={deleteExercise.bind(null, exercise.id)} />
-          </Card>
-        ))}
+                <Icon className="size-5" />
+              </div>
+
+              {group !== "DESCANSO" && (
+                <ToggleCheckbox
+                  checked={completed}
+                  action={
+                    completed
+                      ? unmarkWorkoutDone.bind(null, date.getFullYear(), date.getMonth() + 1, date.getDate())
+                      : markWorkoutDone.bind(null, date.getFullYear(), date.getMonth() + 1, date.getDate())
+                  }
+                />
+              )}
+
+              <div className="min-w-0 flex-1">
+                <p className="text-sm text-foreground">{formatDateEs(date)}</p>
+                <p className={cn("text-xs", completed ? "text-muted line-through" : "text-muted")}>
+                  {ROUTINE_GROUP_LABELS[group]}
+                </p>
+              </div>
+              {group !== "DESCANSO" && completed && (
+                <span className="rounded-full bg-accent/15 px-2 py-0.5 text-[10px] font-medium text-accent">
+                  Cumplido
+                </span>
+              )}
+            </Card>
+          );
+        })}
       </div>
     </div>
   );

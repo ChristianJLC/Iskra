@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { verifySession } from "@/lib/dal";
-import { formatMonthYearEs } from "@/lib/date";
-import { ensureQuincenaIngresos, getMonthBounds, getMonthTotals } from "@/lib/finance";
+import { formatMonthYearEs, getMonthBounds } from "@/lib/date";
+import { ensureQuincenaIngresos, getMonthTotals } from "@/lib/finance";
 import { setBiweeklyIncome, addFinanceEntry } from "@/actions/finance";
 import { Card } from "@/components/ui/card";
 import { Input, Label } from "@/components/ui/input";
@@ -44,9 +44,14 @@ export default async function FinanzasPage() {
           <h1 className="text-xl font-semibold text-foreground">Finanzas</h1>
           <p className="text-sm text-muted">{formatMonthYearEs(month, year)}</p>
         </div>
-        <Link href="/finanzas/historial" className="text-sm font-medium text-accent hover:underline">
-          Ver historial
-        </Link>
+        <div className="flex flex-col items-end gap-1 text-sm font-medium">
+          <Link href="/finanzas/pagos" className="text-accent hover:underline">
+            Pagos mensuales
+          </Link>
+          <Link href="/finanzas/historial" className="text-accent hover:underline">
+            Ver historial
+          </Link>
+        </div>
       </div>
 
       <Card className="space-y-4">

@@ -1,17 +1,12 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
+import { getMonthBounds } from "@/lib/date";
 
 type FinanceAmountEntry = {
   type: string;
   amount: number | Prisma.Decimal;
 };
-
-export function getMonthBounds(month: number, year: number) {
-  const start = new Date(year, month - 1, 1);
-  const end = new Date(year, month, 1);
-  return { start, end };
-}
 
 export function getMonthTotals(entries: FinanceAmountEntry[]) {
   const ingresos = entries
@@ -50,6 +45,46 @@ export async function getHistorialMonths(userId: string, excludeMonth: number, e
   return Array.from(byMonth.values())
     .map(({ month, year, entries }) => ({ month, year, ...getMonthTotals(entries) }))
     .sort((a, b) => b.year - a.year || b.month - a.month);
+}
+
+export type BillState = "inactive" | "active" | "urgent" | "paid";
+
+export function getBillState(
+  bill: { startDay: number; endDay: number | null },
+  today: number,
+  paid: boolean
+): BillState {
+  if (paid) return "paid";
+  if (today < bill.startDay) return "inactive";
+  if (bill.endDay != null && today >= bill.endDay - 2) return "urgent";
+  return "active";
+}
+
+const PRIORITY_WEIGHT: Record<string, number> = { ALTA: 0, MEDIA: 1, BAJA: 2 };
+
+export async function getBillsWithState(userId: string) {
+  const now = new Date();
+  const month = now.getMonth() + 1;
+  const year = now.getFullYear();
+  const today = now.getDate();
+  const { start, end } = getMonthBounds(month, year);
+
+  const [bills, payments] = await Promise.all([
+    prisma.recurringBill.findMany({ where: { userId } }),
+    prisma.financeEntry.findMany({
+      where: { userId, date: { gte: start, lt: end }, recurringBillId: { not: null } },
+      select: { recurringBillId: true },
+    }),
+  ]);
+
+  const paidBillIds = new Set(payments.map((p) => p.recurringBillId));
+
+  return bills
+    .map((bill) => {
+      const paid = paidBillIds.has(bill.id);
+      return { ...bill, paid, state: getBillState(bill, today, paid) };
+    })
+    .sort((a, b) => PRIORITY_WEIGHT[a.priority] - PRIORITY_WEIGHT[b.priority] || a.startDay - b.startDay);
 }
 
 export async function ensureQuincenaIngresos(userId: string) {

@@ -1,12 +1,11 @@
 import { prisma } from "@/lib/prisma";
 import { verifySession } from "@/lib/dal";
 import { startOfToday, endOfToday, formatDateEs } from "@/lib/date";
-import { addMeal, toggleMeal, deleteMeal } from "@/actions/meals";
+import { toggleMeal, deleteMeal } from "@/actions/meals";
 import { Card } from "@/components/ui/card";
-import { Input, Label } from "@/components/ui/input";
-import { SubmitButton } from "@/components/submit-button";
 import { ToggleCheckbox } from "@/components/toggle-checkbox";
 import { DeleteButton } from "@/components/delete-button";
+import { AddMealForm } from "@/components/add-meal-form";
 
 const MEAL_LABELS: Record<string, string> = {
   DESAYUNO: "Desayuno",
@@ -22,6 +21,16 @@ export default async function ComidasPage() {
     orderBy: { createdAt: "asc" },
   });
 
+  const totals = meals.reduce(
+    (acc, meal) => ({
+      calories: acc.calories + (meal.calories ?? 0),
+      proteinG: acc.proteinG + (meal.proteinG ?? 0),
+      carbsG: acc.carbsG + (meal.carbsG ?? 0),
+      fatG: acc.fatG + (meal.fatG ?? 0),
+    }),
+    { calories: 0, proteinG: 0, carbsG: 0, fatG: 0 }
+  );
+
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div>
@@ -29,34 +38,27 @@ export default async function ComidasPage() {
         <p className="text-sm text-muted">{formatDateEs(new Date())}</p>
       </div>
 
+      <Card className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div>
+          <p className="text-xs text-muted">Calorías</p>
+          <p className="text-lg font-semibold text-foreground">{Math.round(totals.calories)}</p>
+        </div>
+        <div>
+          <p className="text-xs text-muted">Proteína</p>
+          <p className="text-lg font-semibold text-foreground">{totals.proteinG.toFixed(0)} g</p>
+        </div>
+        <div>
+          <p className="text-xs text-muted">Carbohidratos</p>
+          <p className="text-lg font-semibold text-foreground">{totals.carbsG.toFixed(0)} g</p>
+        </div>
+        <div>
+          <p className="text-xs text-muted">Grasa</p>
+          <p className="text-lg font-semibold text-foreground">{totals.fatG.toFixed(0)} g</p>
+        </div>
+      </Card>
+
       <Card>
-        <form action={addMeal} className="space-y-4">
-          <div>
-            <Label htmlFor="type">Tipo</Label>
-            <select
-              id="type"
-              name="type"
-              required
-              className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground outline-none focus:border-accent"
-            >
-              <option value="DESAYUNO">Desayuno</option>
-              <option value="ALMUERZO">Almuerzo</option>
-              <option value="CENA">Cena</option>
-            </select>
-          </div>
-
-          <div>
-            <Label htmlFor="description">¿Qué vas a comer?</Label>
-            <Input id="description" name="description" placeholder="Ej. Avena con fruta" required />
-          </div>
-
-          <div>
-            <Label htmlFor="notes">Notas (opcional)</Label>
-            <Input id="notes" name="notes" placeholder="Calorías, ingredientes, etc." />
-          </div>
-
-          <SubmitButton>Agregar comida</SubmitButton>
-        </form>
+        <AddMealForm />
       </Card>
 
       <div className="space-y-3">
@@ -84,6 +86,9 @@ export default async function ComidasPage() {
                 {meal.description}
               </p>
               {meal.notes && <p className="mt-0.5 text-xs text-muted">{meal.notes}</p>}
+              {meal.calories != null && (
+                <p className="mt-0.5 text-xs text-muted">{meal.calories} kcal</p>
+              )}
             </div>
             <DeleteButton action={deleteMeal.bind(null, meal.id)} />
           </Card>

@@ -31,3 +31,33 @@ export function formatMonthYearEs(month: number, year: number) {
   }).format(new Date(year, month - 1, 1));
   return formatted.charAt(0).toUpperCase() + formatted.slice(1);
 }
+
+export function getMonthBounds(month: number, year: number) {
+  const start = new Date(year, month - 1, 1);
+  const end = new Date(year, month, 1);
+  return { start, end };
+}
+
+const WEEKDAY_KEYS = [
+  "sunday",
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+] as const;
+
+export type WeekdayKey = (typeof WEEKDAY_KEYS)[number];
+
+export function getWeekdayKey(date: Date): WeekdayKey {
+  return WEEKDAY_KEYS[date.getDay()];
+}
+
+export function getWeekBounds(date: Date) {
+  const day = date.getDay();
+  const diffToMonday = day === 0 ? -6 : 1 - day;
+  const start = new Date(date.getFullYear(), date.getMonth(), date.getDate() + diffToMonday);
+  const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 7);
+  return { start, end };
+}

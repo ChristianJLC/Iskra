@@ -18,13 +18,16 @@ model User {
   createdAt    DateTime @default(now())
 
   meals              MealEntry[]
+  mealPhotoAnalyses  MealPhotoAnalysis[]
   studies            StudyEntry[]
+  studySubjects      StudySubject[]
   tasks              Task[]
   financeSettings    FinanceSettings[]
   financeEntries     FinanceEntry[]
   recurringBills     RecurringBill[]
   workoutSchedule    WorkoutSchedule?
   workoutCompletions WorkoutCompletion[]
+  nutritionProfile   NutritionProfile?
 }
 
 enum MealType {
@@ -51,50 +54,137 @@ model MealEntry {
   @@index([userId, date])
 }
 
-enum RoutineGroup {
-  DESCANSO
-  PECHO_BICEPS
-  ESPALDA_TRICEPS
-  PIERNAS_ABDOMINALES
+model MealPhotoAnalysis {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+enum MuscleGroup {
+  PECHO
+  ESPALDA
+  BICEPS
+  TRICEPS
+  HOMBROS
+  PIERNAS
+  ABDOMINALES
+  GLUTEOS
+  CARDIO
   BOMBEO
 }
 
 model WorkoutSchedule {
-  id        String       @id @default(cuid())
-  userId    String       @unique
-  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  monday    RoutineGroup @default(DESCANSO)
-  tuesday   RoutineGroup @default(DESCANSO)
-  wednesday RoutineGroup @default(DESCANSO)
-  thursday  RoutineGroup @default(DESCANSO)
-  friday    RoutineGroup @default(DESCANSO)
-  saturday  RoutineGroup @default(DESCANSO)
-  sunday    RoutineGroup @default(DESCANSO)
-  updatedAt DateTime     @updatedAt
+  id        String        @id @default(cuid())
+  userId    String        @unique
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  monday    MuscleGroup[] @default([])
+  tuesday   MuscleGroup[] @default([])
+  wednesday MuscleGroup[] @default([])
+  thursday  MuscleGroup[] @default([])
+  friday    MuscleGroup[] @default([])
+  saturday  MuscleGroup[] @default([])
+  sunday    MuscleGroup[] @default([])
+  updatedAt DateTime      @updatedAt
+}
+
+enum NutritionGoal {
+  PERDER_GRASA
+  GANAR_MUSCULO
+  MANTENER_PESO
+}
+
+enum Sex {
+  HOMBRE
+  MUJER
+}
+
+enum ActivityLevel {
+  SEDENTARIO
+  LIGERAMENTE_ACTIVO
+  MODERADAMENTE_ACTIVO
+  MUY_ACTIVO
+  ATLETA_PROFESIONAL
+}
+
+enum DietType {
+  RECOMENDADA
+  ALTA_PROTEINA
+  BAJA_CARBOHIDRATOS
+  KETO
+  BAJA_GRASAS
+}
+
+enum WeightChangeSpeed {
+  RECOMENDADO
+  RAPIDO
+  LENTO
+}
+
+model NutritionProfile {
+  id               String             @id @default(cuid())
+  userId           String             @unique
+  user             User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goal             NutritionGoal?
+  sex              Sex?
+  age              Int?
+  heightCm         Float?
+  weightKg         Float?
+  activityLevel    ActivityLevel?
+  strengthTraining Boolean?
+  dietType         DietType?
+  targetWeightKg   Float?
+  speed            WeightChangeSpeed?
+  targetCalories   Int?
+  targetCalorieMin Int?
+  targetCalorieMax Int?
+  targetProteinG   Int?
+  targetCarbsG     Int?
+  targetFatG       Int?
+  completedAt      DateTime?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
 }
 
 model WorkoutCompletion {
-  id        String       @id @default(cuid())
+  id        String        @id @default(cuid())
   userId    String
-  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   date      DateTime
-  group     RoutineGroup
-  createdAt DateTime     @default(now())
+  groups    MuscleGroup[]
+  createdAt DateTime      @default(now())
 
   @@unique([userId, date])
   @@index([userId, date])
 }
 
-model StudyEntry {
-  id            String   @id @default(cuid())
+model StudySubject {
+  id            String       @id @default(cuid())
   userId        String
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  date          DateTime @default(now())
-  subject       String
+  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name          String
   targetMinutes Int
-  actualMinutes Int      @default(0)
-  completed     Boolean  @default(false)
-  createdAt     DateTime @default(now())
+  createdAt     DateTime     @default(now())
+  entries       StudyEntry[]
+
+  @@unique([userId, name])
+}
+
+model StudyEntry {
+  id                 String        @id @default(cuid())
+  userId             String
+  user               User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subjectId          String?
+  subject            StudySubject? @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  subjectName        String
+  date               DateTime      @default(now())
+  targetMinutes      Int
+  accumulatedSeconds Int           @default(0)
+  runningSince       DateTime?
+  completed          Boolean       @default(false)
+  createdAt          DateTime      @default(now())
 
   @@index([userId, date])
 }

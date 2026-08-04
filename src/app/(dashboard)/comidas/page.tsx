@@ -6,6 +6,9 @@ import { Card } from "@/components/ui/card";
 import { ToggleCheckbox } from "@/components/toggle-checkbox";
 import { DeleteButton } from "@/components/delete-button";
 import { AddMealForm } from "@/components/add-meal-form";
+import { NutritionOnboarding } from "@/components/nutrition-onboarding";
+import { NutritionSummary } from "@/components/nutrition-summary";
+import { DAILY_PHOTO_LIMIT } from "@/lib/meal-photo";
 
 const MEAL_LABELS: Record<string, string> = {
   DESAYUNO: "Desayuno",
@@ -16,10 +19,20 @@ const MEAL_LABELS: Record<string, string> = {
 export default async function ComidasPage() {
   const { userId } = await verifySession();
 
-  const meals = await prisma.mealEntry.findMany({
-    where: { userId, date: { gte: startOfToday(), lt: endOfToday() } },
-    orderBy: { createdAt: "asc" },
-  });
+  const nutritionProfile = await prisma.nutritionProfile.findUnique({ where: { userId } });
+  if (!nutritionProfile?.completedAt) {
+    return <NutritionOnboarding />;
+  }
+
+  const [meals, photosUsedToday] = await Promise.all([
+    prisma.mealEntry.findMany({
+      where: { userId, date: { gte: startOfToday(), lt: endOfToday() } },
+      orderBy: { createdAt: "asc" },
+    }),
+    prisma.mealPhotoAnalysis.count({
+      where: { userId, createdAt: { gte: startOfToday(), lt: endOfToday() } },
+    }),
+  ]);
 
   const totals = meals.reduce(
     (acc, meal) => ({
@@ -31,34 +44,39 @@ export default async function ComidasPage() {
     { calories: 0, proteinG: 0, carbsG: 0, fatG: 0 }
   );
 
+  const target =
+    nutritionProfile.targetCalories != null &&
+    nutritionProfile.targetCalorieMin != null &&
+    nutritionProfile.targetCalorieMax != null &&
+    nutritionProfile.targetProteinG != null &&
+    nutritionProfile.targetCarbsG != null &&
+    nutritionProfile.targetFatG != null
+      ? {
+          calories: nutritionProfile.targetCalories,
+          calorieRangeMin: nutritionProfile.targetCalorieMin,
+          calorieRangeMax: nutritionProfile.targetCalorieMax,
+          proteinG: nutritionProfile.targetProteinG,
+          carbsG: nutritionProfile.targetCarbsG,
+          fatG: nutritionProfile.targetFatG,
+        }
+      : null;
+
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div>
-        <h1 className="text-xl font-semibold text-foreground">Comidas</h1>
+        <h1 className="text-xl font-semibold text-foreground">Nutrición</h1>
         <p className="text-sm text-muted">{formatDateEs(new Date())}</p>
       </div>
 
-      <Card className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <div>
-          <p className="text-xs text-muted">Calorías</p>
-          <p className="text-lg font-semibold text-foreground">{Math.round(totals.calories)}</p>
-        </div>
-        <div>
-          <p className="text-xs text-muted">Proteína</p>
-          <p className="text-lg font-semibold text-foreground">{totals.proteinG.toFixed(0)} g</p>
-        </div>
-        <div>
-          <p className="text-xs text-muted">Carbohidratos</p>
-          <p className="text-lg font-semibold text-foreground">{totals.carbsG.toFixed(0)} g</p>
-        </div>
-        <div>
-          <p className="text-xs text-muted">Grasa</p>
-          <p className="text-lg font-semibold text-foreground">{totals.fatG.toFixed(0)} g</p>
-        </div>
-      </Card>
+      <NutritionSummary
+        consumed={totals}
+        target={target}
+        hasMeals={meals.length > 0}
+        allCompleted={meals.length > 0 && meals.every((m) => m.completed)}
+      />
 
       <Card>
-        <AddMealForm />
+        <AddMealForm remainingPhotos={Math.max(0, DAILY_PHOTO_LIMIT - photosUsedToday)} />
       </Card>
 
       <div className="space-y-3">

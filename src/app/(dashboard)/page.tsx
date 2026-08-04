@@ -4,7 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { verifySession, getCurrentUser } from "@/lib/dal";
 import { startOfToday, endOfToday, formatDateEs } from "@/lib/date";
 import { ensureQuincenaIngresos } from "@/lib/finance";
-import { getTodayWorkout, ROUTINE_GROUP_LABELS } from "@/lib/exercise";
+import { getTodayWorkout, formatMuscleGroups } from "@/lib/exercise";
+import { effectiveMinutes } from "@/lib/study";
 import { Card } from "@/components/ui/card";
 
 const currency = new Intl.NumberFormat("es-PE", { style: "currency", currency: "PEN" });
@@ -32,7 +33,7 @@ export default async function ResumenPage() {
 
   const mealsCompleted = meals.filter((m) => m.completed).length;
   const studyTarget = studies.reduce((sum, s) => sum + s.targetMinutes, 0);
-  const studyActual = studies.reduce((sum, s) => sum + s.actualMinutes, 0);
+  const studyActual = studies.reduce((sum, s) => sum + effectiveMinutes(s), 0);
 
   const ingresos = financeEntries
     .filter((e) => e.type === "INGRESO")
@@ -49,7 +50,7 @@ export default async function ResumenPage() {
     {
       href: "/comidas",
       icon: Utensils,
-      title: "Comidas",
+      title: "Nutrición",
       value: `${mealsCompleted}/${meals.length || 0}`,
       hint: meals.length ? "completadas hoy" : "sin registros hoy",
     },
@@ -58,9 +59,13 @@ export default async function ResumenPage() {
       icon: Dumbbell,
       title: "Ejercicio",
       value:
-        todayWorkout.group === "DESCANSO" ? "Descanso" : todayWorkout.completed ? "Completado" : "Pendiente",
+        todayWorkout.groups.length === 0
+          ? "Descanso"
+          : todayWorkout.completed
+            ? "Completado"
+            : "Pendiente",
       hint:
-        todayWorkout.group === "DESCANSO" ? "hoy no toca rutina" : ROUTINE_GROUP_LABELS[todayWorkout.group],
+        todayWorkout.groups.length === 0 ? "hoy no toca rutina" : formatMuscleGroups(todayWorkout.groups),
     },
     {
       href: "/estudio",

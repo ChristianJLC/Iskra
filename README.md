@@ -26,7 +26,7 @@ App personal para organizar comidas, ejercicio, estudio, tareas y finanzas del d
 ## Estructura
 
 - `src/app/(auth)`: registro e inicio de sesión.
-- `src/app/(dashboard)`: layout protegido con navegación (Resumen, Comidas, Ejercicio, Estudio, Organización, Finanzas).
+- `src/app/(dashboard)`: layout protegido con navegación (Resumen, Nutrición, Ejercicio, Estudio, Organización, Finanzas).
 - `src/actions`: Server Actions para cada módulo (mutaciones de datos).
 - `src/lib`: sesión (JWT en cookie), data access layer (`dal.ts`), Prisma, utilidades.
 - `prisma/schema.prisma`: modelo de datos.

@@ -1,28 +1,37 @@
-import { Bed, Dumbbell } from "lucide-react";
+import { Dumbbell, Bed } from "lucide-react";
 import type { ElementType } from "react";
-import type { RoutineGroup } from "@/generated/prisma/client";
-import { ChestBicepsIcon, BackTricepsIcon, LegsAbsIcon } from "@/components/icons/routine-icons";
+import type { MuscleGroup } from "@/generated/prisma/client";
 
-export const ROUTINE_GROUP_LABELS: Record<RoutineGroup, string> = {
-  DESCANSO: "Descanso",
-  PECHO_BICEPS: "Pecho y Bíceps",
-  ESPALDA_TRICEPS: "Espalda y Tríceps",
-  PIERNAS_ABDOMINALES: "Piernas y Abdominales",
+export const MUSCLE_GROUP_LABELS: Record<MuscleGroup, string> = {
+  PECHO: "Pecho",
+  ESPALDA: "Espalda",
+  BICEPS: "Bíceps",
+  TRICEPS: "Tríceps",
+  HOMBROS: "Hombros",
+  PIERNAS: "Piernas",
+  ABDOMINALES: "Abdominales",
+  GLUTEOS: "Glúteos",
+  CARDIO: "Cardio",
   BOMBEO: "Bombeo",
 };
 
-export const ROUTINE_GROUP_ICONS: Record<RoutineGroup, ElementType> = {
-  DESCANSO: Bed,
-  PECHO_BICEPS: ChestBicepsIcon,
-  ESPALDA_TRICEPS: BackTricepsIcon,
-  PIERNAS_ABDOMINALES: LegsAbsIcon,
-  BOMBEO: Dumbbell,
-};
-
-export const ROUTINE_GROUP_OPTIONS: RoutineGroup[] = [
-  "DESCANSO",
-  "PECHO_BICEPS",
-  "ESPALDA_TRICEPS",
-  "PIERNAS_ABDOMINALES",
+export const MUSCLE_GROUP_OPTIONS: MuscleGroup[] = [
+  "PECHO",
+  "ESPALDA",
+  "BICEPS",
+  "TRICEPS",
+  "HOMBROS",
+  "PIERNAS",
+  "ABDOMINALES",
+  "GLUTEOS",
+  "CARDIO",
   "BOMBEO",
 ];
+
+export function formatMuscleGroups(groups: MuscleGroup[]): string {
+  return groups.length === 0 ? "Descanso" : groups.map((group) => MUSCLE_GROUP_LABELS[group]).join(", ");
+}
+
+export function dayIcon(groups: MuscleGroup[]): ElementType {
+  return groups.length === 0 ? Bed : Dumbbell;
+}

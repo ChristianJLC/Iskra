@@ -3,6 +3,7 @@
 import { useRef, useState, useTransition, type ChangeEvent } from "react";
 import { addMeal } from "@/actions/meals";
 import { analyzeMealPhoto } from "@/actions/analyze-meal-photo";
+import { DAILY_PHOTO_LIMIT } from "@/lib/meal-photo";
 import { Input, Label, FieldError } from "@/components/ui/input";
 import { SubmitButton } from "@/components/submit-button";
 
@@ -34,9 +35,10 @@ const EMPTY_FORM = {
   fatG: "",
 };
 
-export function AddMealForm() {
+export function AddMealForm({ remainingPhotos }: { remainingPhotos: number }) {
   const [isAnalyzing, startAnalysis] = useTransition();
   const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [remaining, setRemaining] = useState(remainingPhotos);
   const [description, setDescription] = useState(EMPTY_FORM.description);
   const [calories, setCalories] = useState(EMPTY_FORM.calories);
   const [proteinG, setProteinG] = useState(EMPTY_FORM.proteinG);
@@ -71,6 +73,7 @@ export function AddMealForm() {
       photoFormData.set("photo", compressed);
 
       const result = await analyzeMealPhoto(photoFormData);
+      setRemaining(result.remaining);
 
       if (!result.ok) {
         setAnalysisError(result.error);
@@ -95,11 +98,18 @@ export function AddMealForm() {
           type="file"
           accept="image/*"
           capture="environment"
-          disabled={isAnalyzing}
+          disabled={isAnalyzing || remaining <= 0}
           onChange={handlePhotoChange}
-          className="w-full text-sm text-muted file:mr-3 file:rounded-lg file:border-0 file:bg-accent file:px-3 file:py-2 file:text-sm file:text-accent-foreground"
+          className="w-full text-sm text-muted file:mr-3 file:rounded-lg file:border-0 file:bg-accent file:px-3 file:py-2 file:text-sm file:text-accent-foreground disabled:opacity-50"
         />
         {isAnalyzing && <p className="mt-1 text-xs text-muted">Analizando foto…</p>}
+        {!isAnalyzing && (
+          <p className="mt-1 text-xs text-muted">
+            {remaining > 0
+              ? `Te quedan ${remaining} de ${DAILY_PHOTO_LIMIT} fotos por analizar hoy.`
+              : `Llegaste al límite de ${DAILY_PHOTO_LIMIT} fotos analizadas hoy. Ingresa los datos manualmente.`}
+          </p>
+        )}
         <FieldError messages={analysisError ? [analysisError] : undefined} />
       </div>
 

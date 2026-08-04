@@ -2,8 +2,8 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { verifySession } from "@/lib/dal";
 import { formatDateEs } from "@/lib/date";
-import { getCurrentWeekView, ROUTINE_GROUP_LABELS } from "@/lib/exercise";
-import { ROUTINE_GROUP_ICONS } from "@/lib/routine-groups";
+import { getCurrentWeekView } from "@/lib/exercise";
+import { formatMuscleGroups, dayIcon } from "@/lib/routine-groups";
 import { markWorkoutDone, unmarkWorkoutDone } from "@/actions/exercises";
 import { Card } from "@/components/ui/card";
 import { ToggleCheckbox } from "@/components/toggle-checkbox";
@@ -33,20 +33,21 @@ export default async function EjercicioPage() {
       <WorkoutScheduleForm schedule={schedule} />
 
       <div className="space-y-3">
-        {week.map(({ date, group, completed }) => {
-          const Icon = ROUTINE_GROUP_ICONS[group];
+        {week.map(({ date, groups, completed }) => {
+          const Icon = dayIcon(groups);
+          const isRest = groups.length === 0;
           return (
             <Card key={date.toISOString()} className="flex items-center gap-3 py-4">
               <div
                 className={cn(
                   "flex size-10 shrink-0 items-center justify-center rounded-lg",
-                  group === "DESCANSO" ? "bg-surface-hover text-muted" : "bg-accent/15 text-accent"
+                  isRest ? "bg-surface-hover text-muted" : "bg-accent/15 text-accent"
                 )}
               >
                 <Icon className="size-5" />
               </div>
 
-              {group !== "DESCANSO" && (
+              {!isRest && (
                 <ToggleCheckbox
                   checked={completed}
                   action={
@@ -60,10 +61,10 @@ export default async function EjercicioPage() {
               <div className="min-w-0 flex-1">
                 <p className="text-sm text-foreground">{formatDateEs(date)}</p>
                 <p className={cn("text-xs", completed ? "text-muted line-through" : "text-muted")}>
-                  {ROUTINE_GROUP_LABELS[group]}
+                  {formatMuscleGroups(groups)}
                 </p>
               </div>
-              {group !== "DESCANSO" && completed && (
+              {!isRest && completed && (
                 <span className="rounded-full bg-accent/15 px-2 py-0.5 text-[10px] font-medium text-accent">
                   Cumplido
                 </span>

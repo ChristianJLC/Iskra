@@ -3,29 +3,29 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { verifySession } from "@/lib/dal";
-import { getScheduledGroup } from "@/lib/exercise";
-import { ROUTINE_GROUP_OPTIONS } from "@/lib/routine-groups";
-import type { RoutineGroup } from "@/generated/prisma/client";
+import { getScheduledGroups } from "@/lib/exercise";
+import { MUSCLE_GROUP_OPTIONS } from "@/lib/routine-groups";
+import type { MuscleGroup } from "@/generated/prisma/client";
 
 const EDITABLE_DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday"] as const;
 
-function readGroup(formData: FormData, field: string): RoutineGroup {
-  const value = formData.get(field) as string;
-  return ROUTINE_GROUP_OPTIONS.includes(value as RoutineGroup) ? (value as RoutineGroup) : "DESCANSO";
+type EditableDay = (typeof EDITABLE_DAYS)[number];
+
+function sanitizeGroups(groups: MuscleGroup[]): MuscleGroup[] {
+  return groups.filter((group) => MUSCLE_GROUP_OPTIONS.includes(group));
 }
 
-export async function saveWorkoutSchedule(formData: FormData) {
+export async function saveWorkoutSchedule(days: Record<EditableDay, MuscleGroup[]>) {
   const { userId } = await verifySession();
 
-  const days = Object.fromEntries(EDITABLE_DAYS.map((day) => [day, readGroup(formData, day)])) as Record<
-    (typeof EDITABLE_DAYS)[number],
-    RoutineGroup
-  >;
+  const data = Object.fromEntries(
+    EDITABLE_DAYS.map((day) => [day, sanitizeGroups(days[day] ?? [])])
+  ) as Record<EditableDay, MuscleGroup[]>;
 
   await prisma.workoutSchedule.upsert({
     where: { userId },
-    update: { ...days, sunday: "DESCANSO" },
-    create: { userId, ...days, sunday: "DESCANSO" },
+    update: { ...data, sunday: [] },
+    create: { userId, ...data, sunday: [] },
   });
 
   revalidatePath("/ejercicio");
@@ -36,15 +36,15 @@ export async function markWorkoutDone(year: number, month: number, day: number) 
 
   const date = new Date(year, month - 1, day);
   const schedule = await prisma.workoutSchedule.findUnique({ where: { userId } });
-  const group = getScheduledGroup(schedule, date);
-  if (group === "DESCANSO") return;
+  const groups = getScheduledGroups(schedule, date);
+  if (groups.length === 0) return;
 
   const exists = await prisma.workoutCompletion.findUnique({
     where: { userId_date: { userId, date } },
   });
   if (exists) return;
 
-  await prisma.workoutCompletion.create({ data: { userId, date, group } });
+  await prisma.workoutCompletion.create({ data: { userId, date, groups } });
 
   revalidatePath("/ejercicio");
   revalidatePath("/ejercicio/historial");

@@ -1,12 +1,12 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import { getMonthBounds, getWeekBounds, getWeekdayKey } from "@/lib/date";
-import type { RoutineGroup, WorkoutSchedule } from "@/generated/prisma/client";
+import type { MuscleGroup, WorkoutSchedule } from "@/generated/prisma/client";
 
-export { ROUTINE_GROUP_LABELS } from "@/lib/routine-groups";
+export { MUSCLE_GROUP_LABELS, formatMuscleGroups } from "@/lib/routine-groups";
 
-export function getScheduledGroup(schedule: WorkoutSchedule | null, date: Date): RoutineGroup {
-  if (!schedule) return "DESCANSO";
+export function getScheduledGroups(schedule: WorkoutSchedule | null, date: Date): MuscleGroup[] {
+  if (!schedule) return [];
   return schedule[getWeekdayKey(date)];
 }
 
@@ -35,7 +35,7 @@ export async function getCurrentWeekView(userId: string) {
 
   return days.map((date) => ({
     date,
-    group: getScheduledGroup(schedule, date),
+    groups: getScheduledGroups(schedule, date),
     completed: completedDates.has(date.getTime()),
   }));
 }
@@ -44,13 +44,13 @@ export async function getTodayWorkout(userId: string) {
   const schedule = await prisma.workoutSchedule.findUnique({ where: { userId } });
   const today = new Date();
   const dayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  const group = getScheduledGroup(schedule, dayStart);
+  const groups = getScheduledGroups(schedule, dayStart);
 
   const completion = await prisma.workoutCompletion.findUnique({
     where: { userId_date: { userId, date: dayStart } },
   });
 
-  return { group, completed: Boolean(completion) };
+  return { groups, completed: Boolean(completion) };
 }
 
 export async function getMonthlyCompliance(userId: string, month: number, year: number) {
@@ -58,7 +58,7 @@ export async function getMonthlyCompliance(userId: string, month: number, year: 
   const { start, end } = getMonthBounds(month, year);
 
   const scheduled = eachDateOfMonth(month, year).filter(
-    (date) => getScheduledGroup(schedule, date) !== "DESCANSO"
+    (date) => getScheduledGroups(schedule, date).length > 0
   ).length;
 
   const completed = await prisma.workoutCompletion.count({

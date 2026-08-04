@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { verifySession } from "@/lib/dal";
+import { startOfToday, endOfToday } from "@/lib/date";
 
 function parseOptionalNumber(value: FormDataEntryValue | null): number | null {
   if (typeof value !== "string" || value.trim() === "") return null;
@@ -56,6 +57,18 @@ export async function deleteMeal(id: string) {
   const { userId } = await verifySession();
 
   await prisma.mealEntry.deleteMany({ where: { id, userId } });
+
+  revalidatePath("/comidas");
+  revalidatePath("/");
+}
+
+export async function completeAllMeals() {
+  const { userId } = await verifySession();
+
+  await prisma.mealEntry.updateMany({
+    where: { userId, date: { gte: startOfToday(), lt: endOfToday() }, completed: false },
+    data: { completed: true },
+  });
 
   revalidatePath("/comidas");
   revalidatePath("/");

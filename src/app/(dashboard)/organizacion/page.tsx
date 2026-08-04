@@ -1,10 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { verifySession } from "@/lib/dal";
 import { formatShortDateEs } from "@/lib/date";
-import { addTask, toggleTask, deleteTask } from "@/actions/tasks";
+import { toggleTask, deleteTask } from "@/actions/tasks";
 import { Card } from "@/components/ui/card";
-import { Input, Label } from "@/components/ui/input";
-import { SubmitButton } from "@/components/submit-button";
+import { TaskForm } from "@/components/task-form";
 import { ToggleCheckbox } from "@/components/toggle-checkbox";
 import { DeleteButton } from "@/components/delete-button";
 import { cn } from "@/lib/cn";
@@ -39,45 +38,11 @@ export default async function OrganizacionPage() {
         <p className="text-sm text-muted">Tus tareas y pendientes</p>
       </div>
 
-      <Card>
-        <form action={addTask} className="space-y-4">
-          <div>
-            <Label htmlFor="title">Tarea</Label>
-            <Input id="title" name="title" placeholder="Ej. Pagar el internet" required />
-          </div>
-
-          <div>
-            <Label htmlFor="description">Descripción (opcional)</Label>
-            <Input id="description" name="description" placeholder="Detalles adicionales" />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label htmlFor="dueDate">Fecha límite</Label>
-              <Input id="dueDate" name="dueDate" type="date" />
-            </div>
-            <div>
-              <Label htmlFor="priority">Prioridad</Label>
-              <select
-                id="priority"
-                name="priority"
-                defaultValue="MEDIA"
-                className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground outline-none focus:border-accent"
-              >
-                <option value="BAJA">Baja</option>
-                <option value="MEDIA">Media</option>
-                <option value="ALTA">Alta</option>
-              </select>
-            </div>
-          </div>
-
-          <SubmitButton>Agregar tarea</SubmitButton>
-        </form>
-      </Card>
+      <TaskForm />
 
       <div className="space-y-3">
         {pending.length === 0 && (
-          <p className="text-sm text-muted">No tienes tareas pendientes. 🎉</p>
+          <p className="text-sm text-muted">No tienes tareas pendientes.</p>
         )}
 
         {pending.map((task) => (

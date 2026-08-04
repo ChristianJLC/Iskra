@@ -11,6 +11,7 @@
   --muted: #71717a;
   --accent: #3f6212;
   --accent-foreground: #ffffff;
+  --accent-glow: rgba(63, 98, 18, 0.35);
   --danger: #b91c1c;
   --warning: #c2660d;
 }
@@ -24,6 +25,7 @@
   --muted: #a1a1aa;
   --accent: #a3e635;
   --accent-foreground: #14210a;
+  --accent-glow: rgba(163, 230, 53, 0.45);
   --danger: #f87171;
   --warning: #fb923c;
 }
@@ -41,9 +43,53 @@
   --color-warning: var(--warning);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --animate-fade-up: fade-up 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-fade-in: fade-in 0.6s ease-out both;
+  --animate-pulse-glow: pulse-glow 2.2s ease-in-out infinite;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes pulse-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 var(--accent-glow);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 22px 6px var(--accent-glow);
+    transform: scale(1.015);
+  }
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }

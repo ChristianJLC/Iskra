@@ -1,26 +1,56 @@
 "use server";
 
+import { prisma } from "@/lib/prisma";
 import { verifySession } from "@/lib/dal";
+import { startOfToday, endOfToday } from "@/lib/date";
 import { estimateNutritionFromPhoto, type NutritionEstimateResult } from "@/lib/nutrition-ai";
+import { DAILY_PHOTO_LIMIT } from "@/lib/meal-photo";
 
 const MAX_PHOTO_BYTES = 6 * 1024 * 1024;
 const ALLOWED_MEDIA_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
-export async function analyzeMealPhoto(formData: FormData): Promise<NutritionEstimateResult> {
-  await verifySession();
+export type AnalyzeMealPhotoResult = NutritionEstimateResult & { remaining: number };
+
+async function countUsedToday(userId: string) {
+  return prisma.mealPhotoAnalysis.count({
+    where: { userId, createdAt: { gte: startOfToday(), lt: endOfToday() } },
+  });
+}
+
+export async function analyzeMealPhoto(formData: FormData): Promise<AnalyzeMealPhotoResult> {
+  const { userId } = await verifySession();
 
   const file = formData.get("photo");
   if (!(file instanceof File) || file.size === 0) {
-    return { ok: false, error: "No se recibió ninguna foto." };
+    const remaining = Math.max(0, DAILY_PHOTO_LIMIT - (await countUsedToday(userId)));
+    return { ok: false, error: "No se recibió ninguna foto.", remaining };
   }
   if (!ALLOWED_MEDIA_TYPES.has(file.type)) {
-    return { ok: false, error: "El archivo debe ser una imagen (JPEG, PNG o WEBP)." };
+    const remaining = Math.max(0, DAILY_PHOTO_LIMIT - (await countUsedToday(userId)));
+    return { ok: false, error: "El archivo debe ser una imagen (JPEG, PNG o WEBP).", remaining };
   }
   if (file.size > MAX_PHOTO_BYTES) {
-    return { ok: false, error: "La imagen es demasiado grande." };
+    const remaining = Math.max(0, DAILY_PHOTO_LIMIT - (await countUsedToday(userId)));
+    return { ok: false, error: "La imagen es demasiado grande.", remaining };
   }
 
-  const base64 = Buffer.from(await file.arrayBuffer()).toString("base64");
+  const usedToday = await countUsedToday(userId);
+  if (usedToday >= DAILY_PHOTO_LIMIT) {
+    return {
+      ok: false,
+      error: `Llegaste al límite de ${DAILY_PHOTO_LIMIT} fotos analizadas por día. Ingresa los datos manualmente o intenta de nuevo mañana.`,
+      remaining: 0,
+    };
+  }
 
-  return estimateNutritionFromPhoto(base64, file.type as "image/jpeg" | "image/png" | "image/webp");
+  await prisma.mealPhotoAnalysis.create({ data: { userId } });
+  const remaining = DAILY_PHOTO_LIMIT - usedToday - 1;
+
+  const base64 = Buffer.from(await file.arrayBuffer()).toString("base64");
+  const result = await estimateNutritionFromPhoto(
+    base64,
+    file.type as "image/jpeg" | "image/png" | "image/webp"
+  );
+
+  return { ...result, remaining };
 }

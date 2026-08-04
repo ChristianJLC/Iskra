@@ -2,6 +2,8 @@
 
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
+const currency = new Intl.NumberFormat("es-PE", { style: "currency", currency: "PEN" });
+
 export function FinanceChart({
   ingresos,
   extras,
@@ -35,6 +37,7 @@ export function FinanceChart({
               fontSize: 12,
               color: "var(--foreground)",
             }}
+            formatter={(value) => [currency.format(Number(value)), "Monto"]}
           />
           <Bar dataKey="monto" fill="var(--accent)" radius={[6, 6, 0, 0]} />
         </BarChart>

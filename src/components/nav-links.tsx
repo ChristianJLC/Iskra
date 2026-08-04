@@ -7,7 +7,7 @@ import { cn } from "@/lib/cn";
 
 const links = [
   { href: "/", label: "Resumen", shortLabel: "Resumen", icon: Home },
-  { href: "/comidas", label: "Comidas", shortLabel: "Comidas", icon: Utensils },
+  { href: "/comidas", label: "Nutrición", shortLabel: "Nutrición", icon: Utensils },
   { href: "/ejercicio", label: "Ejercicio", shortLabel: "Ejercicio", icon: Dumbbell },
   { href: "/estudio", label: "Estudio", shortLabel: "Estudio", icon: BookOpen },
   { href: "/organizacion", label: "Organización", shortLabel: "Tareas", icon: ListChecks },

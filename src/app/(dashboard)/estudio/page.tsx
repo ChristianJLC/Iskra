@@ -1,43 +1,49 @@
+import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { verifySession } from "@/lib/dal";
 import { startOfToday, endOfToday, formatDateEs } from "@/lib/date";
-import { addStudy, updateStudyProgress, deleteStudy } from "@/actions/studies";
+import { effectiveSeconds } from "@/lib/study";
+import { deleteStudy } from "@/actions/studies";
 import { Card } from "@/components/ui/card";
-import { Input, Label } from "@/components/ui/input";
-import { SubmitButton } from "@/components/submit-button";
-import { Button } from "@/components/ui/button";
 import { DeleteButton } from "@/components/delete-button";
+import { SubjectPicker } from "@/components/subject-picker";
+import { StudyTimer } from "@/components/study-timer";
 import { cn } from "@/lib/cn";
 
 export default async function EstudioPage() {
   const { userId } = await verifySession();
 
-  const studies = await prisma.studyEntry.findMany({
-    where: { userId, date: { gte: startOfToday(), lt: endOfToday() } },
-    orderBy: { createdAt: "asc" },
-  });
+  const [subjects, studies] = await Promise.all([
+    prisma.studySubject.findMany({ where: { userId }, orderBy: { createdAt: "asc" } }),
+    prisma.studyEntry.findMany({
+      where: { userId, date: { gte: startOfToday(), lt: endOfToday() } },
+      orderBy: { createdAt: "asc" },
+    }),
+  ]);
+
+  const subjectIdsToday = new Set(studies.map((s) => s.subjectId));
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold text-foreground">Estudio</h1>
-        <p className="text-sm text-muted">{formatDateEs(new Date())}</p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold text-foreground">Estudio</h1>
+          <p className="text-sm text-muted">{formatDateEs(new Date())}</p>
+        </div>
+        <Link href="/estudio/historial" className="text-sm font-medium text-accent hover:underline">
+          Ver historial
+        </Link>
       </div>
 
       <Card>
-        <form action={addStudy} className="space-y-4">
-          <div>
-            <Label htmlFor="subject">Materia / tema</Label>
-            <Input id="subject" name="subject" placeholder="Ej. Inglés, matemáticas…" required />
-          </div>
-
-          <div>
-            <Label htmlFor="targetMinutes">Meta (minutos)</Label>
-            <Input id="targetMinutes" name="targetMinutes" type="number" min={1} placeholder="60" required />
-          </div>
-
-          <SubmitButton>Agregar meta de estudio</SubmitButton>
-        </form>
+        <SubjectPicker
+          subjects={subjects.map((s) => ({
+            id: s.id,
+            name: s.name,
+            targetMinutes: s.targetMinutes,
+            addedToday: subjectIdsToday.has(s.id),
+          }))}
+        />
       </Card>
 
       <div className="space-y-3">
@@ -45,53 +51,29 @@ export default async function EstudioPage() {
           <p className="text-sm text-muted">Aún no tienes metas de estudio hoy.</p>
         )}
 
-        {studies.map((entry) => {
-          const progress = Math.min(100, Math.round((entry.actualMinutes / entry.targetMinutes) * 100));
-
-          return (
-            <Card key={entry.id} className="space-y-3 py-4">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p
-                    className={cn(
-                      "text-sm font-medium",
-                      entry.completed ? "text-muted line-through" : "text-foreground"
-                    )}
-                  >
-                    {entry.subject}
-                  </p>
-                  <p className="text-xs text-muted">
-                    {entry.actualMinutes} / {entry.targetMinutes} min
-                  </p>
-                </div>
-                <DeleteButton action={deleteStudy.bind(null, entry.id)} />
-              </div>
-
-              <div className="h-2 w-full overflow-hidden rounded-full bg-surface-hover">
-                <div
-                  className="h-full rounded-full bg-accent transition-all"
-                  style={{ width: `${progress}%` }}
-                />
-              </div>
-
-              <form
-                action={updateStudyProgress.bind(null, entry.id)}
-                className="flex items-center gap-2"
+        {studies.map((entry) => (
+          <Card key={entry.id} className="space-y-3 py-4">
+            <div className="flex items-start justify-between gap-3">
+              <p
+                className={cn(
+                  "text-sm font-medium",
+                  entry.completed ? "text-muted line-through" : "text-foreground"
+                )}
               >
-                <Input
-                  name="actualMinutes"
-                  type="number"
-                  min={0}
-                  defaultValue={entry.actualMinutes}
-                  className="w-24"
-                />
-                <Button type="submit" variant="secondary" className="text-xs">
-                  Actualizar
-                </Button>
-              </form>
-            </Card>
-          );
-        })}
+                {entry.subjectName}
+              </p>
+              <DeleteButton action={deleteStudy.bind(null, entry.id)} />
+            </div>
+
+            <StudyTimer
+              id={entry.id}
+              initialSeconds={effectiveSeconds(entry)}
+              isRunning={Boolean(entry.runningSince)}
+              targetMinutes={entry.targetMinutes}
+              completed={entry.completed}
+            />
+          </Card>
+        ))}
       </div>
     </div>
   );

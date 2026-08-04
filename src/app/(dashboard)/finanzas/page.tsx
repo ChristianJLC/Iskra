@@ -3,11 +3,9 @@ import { prisma } from "@/lib/prisma";
 import { verifySession } from "@/lib/dal";
 import { formatMonthYearEs, getMonthBounds } from "@/lib/date";
 import { ensureQuincenaIngresos, getMonthTotals } from "@/lib/finance";
-import { setBiweeklyIncome, addFinanceEntry } from "@/actions/finance";
 import { Card } from "@/components/ui/card";
-import { Input, Label } from "@/components/ui/input";
-import { SubmitButton } from "@/components/submit-button";
-import { Button } from "@/components/ui/button";
+import { IncomeForm } from "@/components/income-form";
+import { FinanceEntryForm } from "@/components/finance-entry-form";
 import { FinanceChart } from "@/components/finance-chart";
 import { FinanceEntryList } from "@/components/finance-entry-list";
 import { cn } from "@/lib/cn";
@@ -85,57 +83,9 @@ export default async function FinanzasPage() {
         <FinanceChart ingresos={ingresos} extras={extras} gastos={gastos} balance={balance} />
       </Card>
 
-      <Card>
-        <form action={setBiweeklyIncome} className="space-y-4">
-          <input type="hidden" name="month" value={month} />
-          <input type="hidden" name="year" value={year} />
-          <div>
-            <Label htmlFor="biweeklyIncome">Ingreso fijo quincenal</Label>
-            <Input
-              id="biweeklyIncome"
-              name="biweeklyIncome"
-              type="number"
-              min={0}
-              step="0.01"
-              defaultValue={biweeklyIncome || undefined}
-              placeholder="0.00"
-              required
-            />
-          </div>
-          <Button type="submit" variant="secondary">
-            Guardar ingreso quincenal
-          </Button>
-        </form>
-      </Card>
+      <IncomeForm month={month} year={year} biweeklyIncome={biweeklyIncome} />
 
-      <Card>
-        <form action={addFinanceEntry} className="space-y-4">
-          <div>
-            <Label htmlFor="type">Tipo</Label>
-            <select
-              id="type"
-              name="type"
-              required
-              className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground outline-none focus:border-accent"
-            >
-              <option value="EXTRA">Dinero Extra</option>
-              <option value="GASTO">Gasto</option>
-            </select>
-          </div>
-
-          <div>
-            <Label htmlFor="amount">Monto</Label>
-            <Input id="amount" name="amount" type="number" min={0.01} step="0.01" placeholder="0.00" required />
-          </div>
-
-          <div>
-            <Label htmlFor="description">Descripción (opcional)</Label>
-            <Input id="description" name="description" placeholder="Ej. Almuerzo, propina de la tarde…" />
-          </div>
-
-          <SubmitButton>Agregar movimiento</SubmitButton>
-        </form>
-      </Card>
+      <FinanceEntryForm />
 
       <FinanceEntryList entries={entries} />
     </div>

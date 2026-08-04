@@ -38,6 +38,10 @@ export function getMonthBounds(month: number, year: number) {
   return { start, end };
 }
 
+export function daysInMonth(month: number, year: number) {
+  return new Date(year, month, 0).getDate();
+}
+
 const WEEKDAY_KEYS = [
   "sunday",
   "monday",

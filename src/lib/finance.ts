@@ -1,7 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
-import { getMonthBounds } from "@/lib/date";
+import { getMonthBounds, daysInMonth } from "@/lib/date";
 
 type FinanceAmountEntry = {
   type: string;
@@ -52,11 +52,14 @@ export type BillState = "inactive" | "active" | "urgent" | "paid";
 export function getBillState(
   bill: { startDay: number; endDay: number | null },
   today: number,
-  paid: boolean
+  paid: boolean,
+  monthDayCount: number
 ): BillState {
   if (paid) return "paid";
-  if (today < bill.startDay) return "inactive";
-  if (bill.endDay != null && today >= bill.endDay - 2) return "urgent";
+  const startDay = Math.min(bill.startDay, monthDayCount);
+  const endDay = bill.endDay != null ? Math.min(bill.endDay, monthDayCount) : null;
+  if (today < startDay) return "inactive";
+  if (endDay != null && today >= endDay - 2) return "urgent";
   return "active";
 }
 
@@ -67,6 +70,7 @@ export async function getBillsWithState(userId: string) {
   const month = now.getMonth() + 1;
   const year = now.getFullYear();
   const today = now.getDate();
+  const monthDayCount = daysInMonth(month, year);
   const { start, end } = getMonthBounds(month, year);
 
   const [bills, payments] = await Promise.all([
@@ -82,7 +86,7 @@ export async function getBillsWithState(userId: string) {
   return bills
     .map((bill) => {
       const paid = paidBillIds.has(bill.id);
-      return { ...bill, paid, state: getBillState(bill, today, paid) };
+      return { ...bill, paid, state: getBillState(bill, today, paid, monthDayCount) };
     })
     .sort((a, b) => PRIORITY_WEIGHT[a.priority] - PRIORITY_WEIGHT[b.priority] || a.startDay - b.startDay);
 }

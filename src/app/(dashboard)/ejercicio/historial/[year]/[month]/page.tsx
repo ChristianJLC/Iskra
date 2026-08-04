@@ -4,8 +4,8 @@ import { ArrowLeft } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { verifySession } from "@/lib/dal";
 import { formatMonthYearEs, formatShortDateEs, getMonthBounds } from "@/lib/date";
-import { getMonthlyCompliance, ROUTINE_GROUP_LABELS } from "@/lib/exercise";
-import { ROUTINE_GROUP_ICONS } from "@/lib/routine-groups";
+import { getMonthlyCompliance } from "@/lib/exercise";
+import { formatMuscleGroups, dayIcon } from "@/lib/routine-groups";
 import { Card } from "@/components/ui/card";
 
 export default async function EjercicioHistorialMesPage({
@@ -62,13 +62,13 @@ export default async function EjercicioHistorialMesPage({
         )}
 
         {completions.map((c) => {
-          const Icon = ROUTINE_GROUP_ICONS[c.group];
+          const Icon = dayIcon(c.groups);
           return (
             <Card key={c.id} className="flex items-center justify-between py-3">
               <p className="text-sm text-foreground">{formatShortDateEs(c.date)}</p>
               <span className="flex items-center gap-1 rounded-full bg-accent/15 px-2 py-0.5 text-[10px] font-medium text-accent">
                 <Icon className="size-3" />
-                {ROUTINE_GROUP_LABELS[c.group]}
+                {formatMuscleGroups(c.groups)}
               </span>
             </Card>
           );

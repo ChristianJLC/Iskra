@@ -16,8 +16,12 @@ model User {
   passwordHash String
   name         String
   createdAt    DateTime @default(now())
+  accentColor  String?
+  accentColor2 String?
+  avatarId     String?
 
   meals              MealEntry[]
+  savedMeals         SavedMeal[]
   mealPhotoAnalyses  MealPhotoAnalysis[]
   studies            StudyEntry[]
   studySubjects      StudySubject[]
@@ -28,12 +32,33 @@ model User {
   workoutSchedule    WorkoutSchedule?
   workoutCompletions WorkoutCompletion[]
   nutritionProfile   NutritionProfile?
+  waterEntries       WaterEntry[]
+  savedIngredients   SavedIngredient[]
+}
+
+model SavedIngredient {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  key       String
+  name      String
+  calories  Int
+  proteinG  Float
+  carbsG    Float
+  fatG      Float
+  portion   String?
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  @@unique([userId, key])
+  @@index([userId, updatedAt])
 }
 
 enum MealType {
   DESAYUNO
   ALMUERZO
   CENA
+  SNACK
 }
 
 model MealEntry {
@@ -48,9 +73,40 @@ model MealEntry {
   proteinG    Float?
   carbsG      Float?
   fatG        Float?
+  ingredients Json?
   completed   Boolean  @default(false)
   createdAt   DateTime @default(now())
 
+  @@index([userId, date])
+}
+
+model SavedMeal {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  calories    Int?
+  proteinG    Float?
+  carbsG      Float?
+  fatG        Float?
+  ingredients Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([userId, title])
+  @@index([userId, updatedAt])
+}
+
+model WaterEntry {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date      DateTime
+  glasses   Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, date])
   @@index([userId, date])
 }
 
@@ -209,13 +265,19 @@ model Task {
   @@index([userId, completed])
 }
 
+enum IncomeFrequency {
+  QUINCENAL
+  MENSUAL
+}
+
 model FinanceSettings {
-  id             String  @id @default(cuid())
-  userId         String
-  user           User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  month          Int
-  year           Int
-  biweeklyIncome Decimal @db.Decimal(12, 2)
+  id              String          @id @default(cuid())
+  userId          String
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  month           Int
+  year            Int
+  biweeklyIncome  Decimal         @db.Decimal(12, 2)
+  incomeFrequency IncomeFrequency @default(QUINCENAL)
 
   @@unique([userId, month, year])
 }

@@ -3,41 +3,60 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  --background: #fafafa;
+  --background: #f7f7fa;
   --surface: #ffffff;
-  --surface-hover: #f4f4f5;
-  --border: #e4e4e7;
-  --foreground: #18181b;
-  --muted: #71717a;
-  --accent: #3f6212;
+  --surface-1: #ffffff;
+  --surface-2: #f2f2f6;
+  --surface-hover: #eeeef2;
+  --border: #e3e3ea;
+  --foreground: #14141a;
+  --muted: #6b6b76;
+  --accent: #2563eb;
+  --accent-2: #9333ea;
   --accent-foreground: #ffffff;
-  --accent-glow: rgba(63, 98, 18, 0.35);
+  --accent-glow-ratio: 28%;
+  --accent-glow: color-mix(in srgb, var(--accent) var(--accent-glow-ratio), transparent);
   --danger: #b91c1c;
   --warning: #c2660d;
+  --glass-bg: rgba(255, 255, 255, 0.72);
+  --glass-border: rgba(0, 0, 0, 0.06);
+  --shadow-soft: 0 1px 2px rgba(20, 20, 26, 0.06), 0 8px 24px -8px rgba(20, 20, 26, 0.12);
+  --shadow-glow: 0 0 32px 0 var(--accent-glow);
 }
 
 .dark {
-  --background: #0a0a0b;
-  --surface: #18181b;
-  --surface-hover: #212124;
-  --border: #2b2b2f;
-  --foreground: #fafafa;
-  --muted: #a1a1aa;
-  --accent: #a3e635;
-  --accent-foreground: #14210a;
-  --accent-glow: rgba(163, 230, 53, 0.45);
+  --background: #08080b;
+  --surface: #101015;
+  --surface-1: #16161d;
+  --surface-2: #1e1e27;
+  --surface-hover: #24242e;
+  --border: #2a2a35;
+  --foreground: #f5f5f7;
+  --muted: #9797a6;
+  --accent: #3b82f6;
+  --accent-2: #a855f7;
+  --accent-foreground: #ffffff;
+  --accent-glow-ratio: 45%;
+  --accent-glow: color-mix(in srgb, var(--accent) var(--accent-glow-ratio), transparent);
   --danger: #f87171;
   --warning: #fb923c;
+  --glass-bg: rgba(22, 22, 29, 0.68);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px -8px rgba(0, 0, 0, 0.5);
+  --shadow-glow: 0 0 32px 0 var(--accent-glow);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-surface: var(--surface);
+  --color-surface-1: var(--surface-1);
+  --color-surface-2: var(--surface-2);
   --color-surface-hover: var(--surface-hover);
   --color-border: var(--border);
   --color-foreground: var(--foreground);
   --color-muted: var(--muted);
   --color-accent: var(--accent);
+  --color-accent-2: var(--accent-2);
   --color-accent-foreground: var(--accent-foreground);
   --color-danger: var(--danger);
   --color-warning: var(--warning);
@@ -51,6 +70,23 @@
 body {
   background: var(--background);
   color: var(--foreground);
+}
+
+@layer utilities {
+  .glass {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+
+  .shadow-soft {
+    box-shadow: var(--shadow-soft);
+  }
+
+  .shadow-glow {
+    box-shadow: var(--shadow-glow);
+  }
 }
 
 @keyframes fade-up {
@@ -92,4 +128,10 @@ body {
 
 .no-scrollbar::-webkit-scrollbar {
   display: none;
+}
+
+.recharts-wrapper svg:focus,
+.recharts-wrapper svg *:focus,
+.recharts-surface:focus {
+  outline: none;
 }

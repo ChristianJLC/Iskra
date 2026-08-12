@@ -43,7 +43,7 @@ export default async function EjercicioHistorialMesPage({
           <ArrowLeft className="size-4" />
           Historial
         </Link>
-        <h1 className="mt-2 text-xl font-semibold text-foreground">{formatMonthYearEs(month, year)}</h1>
+        <h1 className="mt-2 text-2xl font-bold tracking-tight text-foreground">{formatMonthYearEs(month, year)}</h1>
       </div>
 
       <Card className="flex items-center justify-between">

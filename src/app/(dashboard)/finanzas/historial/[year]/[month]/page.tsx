@@ -34,6 +34,7 @@ export default async function HistorialMesPage({
   });
 
   const { ingresos, extras, gastos, balance } = getMonthTotals(entries);
+  const serializedEntries = entries.map((entry) => ({ ...entry, amount: Number(entry.amount) }));
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -45,7 +46,7 @@ export default async function HistorialMesPage({
           <ArrowLeft className="size-4" />
           Historial
         </Link>
-        <h1 className="mt-2 text-xl font-semibold text-foreground">{formatMonthYearEs(month, year)}</h1>
+        <h1 className="mt-2 text-2xl font-bold tracking-tight text-foreground">{formatMonthYearEs(month, year)}</h1>
       </div>
 
       <Card className="space-y-4">
@@ -74,7 +75,7 @@ export default async function HistorialMesPage({
         <FinanceChart ingresos={ingresos} extras={extras} gastos={gastos} balance={balance} />
       </Card>
 
-      <FinanceEntryList entries={entries} />
+      <FinanceEntryList entries={serializedEntries} />
     </div>
   );
 }

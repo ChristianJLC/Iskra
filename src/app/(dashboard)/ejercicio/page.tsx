@@ -2,27 +2,29 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { verifySession } from "@/lib/dal";
 import { formatDateEs } from "@/lib/date";
-import { getCurrentWeekView } from "@/lib/exercise";
+import { getCurrentWeekView, getWorkoutStreak } from "@/lib/exercise";
 import { formatMuscleGroups, dayIcon } from "@/lib/routine-groups";
 import { markWorkoutDone, unmarkWorkoutDone } from "@/actions/exercises";
 import { Card } from "@/components/ui/card";
 import { ToggleCheckbox } from "@/components/toggle-checkbox";
 import { WorkoutScheduleForm } from "@/components/workout-schedule-form";
+import { ExerciseStreak } from "@/components/exercise-streak";
 import { cn } from "@/lib/cn";
 
 export default async function EjercicioPage() {
   const { userId } = await verifySession();
 
-  const [schedule, week] = await Promise.all([
+  const [schedule, week, streak] = await Promise.all([
     prisma.workoutSchedule.findUnique({ where: { userId } }),
     getCurrentWeekView(userId),
+    getWorkoutStreak(userId),
   ]);
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold text-foreground">Ejercicio</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">Ejercicio</h1>
           <p className="text-sm text-muted">Tu rutina semanal</p>
         </div>
         <Link href="/ejercicio/historial" className="text-sm font-medium text-accent hover:underline">
@@ -32,6 +34,8 @@ export default async function EjercicioPage() {
 
       <WorkoutScheduleForm schedule={schedule} />
 
+      <ExerciseStreak streak={streak} />
+
       <div className="space-y-3">
         {week.map(({ date, groups, completed }) => {
           const Icon = dayIcon(groups);
@@ -40,8 +44,10 @@ export default async function EjercicioPage() {
             <Card key={date.toISOString()} className="flex items-center gap-3 py-4">
               <div
                 className={cn(
-                  "flex size-10 shrink-0 items-center justify-center rounded-lg",
-                  isRest ? "bg-surface-hover text-muted" : "bg-accent/15 text-accent"
+                  "flex size-10 shrink-0 items-center justify-center rounded-xl",
+                  isRest
+                    ? "bg-surface-2 text-muted"
+                    : "bg-gradient-to-br from-accent to-accent-2 text-white shadow-glow"
                 )}
               >
                 <Icon className="size-5" />

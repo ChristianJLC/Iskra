@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { Check } from "lucide-react";
+import { Check, Pencil } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { CalorieRangeArc } from "@/components/ui/calorie-range-arc";
 import { completeAllMeals } from "@/actions/meals";
 import { recalculateNutritionPlan } from "@/actions/nutrition-profile";
 import { cn } from "@/lib/cn";
@@ -17,52 +18,19 @@ function useRevealed(delay = 50) {
   return revealed;
 }
 
-function CalorieProgress({
-  consumed,
-  target,
-  min,
-  max,
-}: {
-  consumed: number;
-  target: number;
-  min: number;
-  max: number;
-}) {
-  const revealed = useRevealed();
-  const percent = target > 0 ? Math.min(100, (consumed / target) * 100) : 0;
-
-  return (
-    <div className="space-y-2">
-      <p className="text-2xl font-semibold text-foreground">
-        {Math.round(consumed).toLocaleString("es")}
-        <span className="text-base font-normal text-muted"> / {target.toLocaleString("es")} kcal</span>
-      </p>
-      <div className="h-2 overflow-hidden rounded-full bg-border">
-        <div
-          className="h-full rounded-full bg-accent transition-[width] duration-700 ease-out"
-          style={{ width: revealed ? `${percent}%` : "0%" }}
-        />
-      </div>
-      <p className="text-xs text-muted">
-        Rango recomendado: {min.toLocaleString("es")}–{max.toLocaleString("es")} kcal
-      </p>
-    </div>
-  );
-}
-
 function MacroProgress({ label, consumed, target }: { label: string; consumed: number; target: number }) {
   const revealed = useRevealed();
   const percent = target > 0 ? Math.min(100, (consumed / target) * 100) : 0;
 
   return (
-    <div className="flex-1 space-y-1.5">
+    <div className="flex-1 space-y-1.5 text-center">
       <p className="text-xs text-muted">{label}</p>
       <p className="text-sm font-semibold text-foreground">
         {Math.round(consumed)} / {target} g
       </p>
-      <div className="h-1.5 overflow-hidden rounded-full bg-border">
+      <div className="h-1.5 overflow-hidden rounded-full bg-surface-2">
         <div
-          className="h-full rounded-full bg-accent transition-[width] duration-700 ease-out"
+          className="h-full rounded-full bg-gradient-to-r from-accent to-accent-2 transition-[width] duration-700 ease-out"
           style={{ width: revealed ? `${percent}%` : "0%" }}
         />
       </div>
@@ -93,10 +61,11 @@ export function NutritionSummary({
 }) {
   const [isCalculating, startCalculating] = useTransition();
   const [isFinishing, startFinishing] = useTransition();
+  const revealed = useRevealed();
 
   if (!target) {
     return (
-      <Card className="space-y-4">
+      <Card className="space-y-4 rounded-[2rem]">
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <div>
             <p className="text-xs text-muted">Calorías</p>
@@ -118,7 +87,7 @@ export function NutritionSummary({
         <Button
           type="button"
           variant="secondary"
-          className="w-full"
+          className="w-full rounded-full"
           disabled={isCalculating}
           onClick={() => startCalculating(() => recalculateNutritionPlan())}
         >
@@ -129,12 +98,33 @@ export function NutritionSummary({
   }
 
   return (
-    <Card className="space-y-4">
-      <CalorieProgress
+    <Card className="space-y-5 rounded-[2rem]">
+      <div className="flex items-center justify-between">
+        <button
+          type="button"
+          onClick={() => startCalculating(() => recalculateNutritionPlan())}
+          disabled={isCalculating}
+          aria-label="Recalcular meta diaria"
+          className="flex size-9 items-center justify-center rounded-full text-muted transition-colors hover:bg-surface-hover hover:text-foreground disabled:opacity-50"
+        >
+          <Pencil className="size-4" />
+        </button>
+        <div className="size-9" />
+      </div>
+
+      <div className="text-center">
+        <p className="text-3xl font-bold text-foreground">
+          {Math.round(consumed.calories).toLocaleString("es")}
+          <span className="text-muted"> / {target.calories.toLocaleString("es")}</span>
+        </p>
+        <p className="text-sm text-muted">kcal</p>
+      </div>
+
+      <CalorieRangeArc
         consumed={consumed.calories}
         target={target.calories}
-        min={target.calorieRangeMin}
-        max={target.calorieRangeMax}
+        revealed={revealed}
+        height={40}
       />
 
       <div className="flex gap-4 pt-1">
@@ -146,7 +136,10 @@ export function NutritionSummary({
       <Button
         type="button"
         variant={allCompleted ? "secondary" : "primary"}
-        className={cn("w-full", hasMeals && !allCompleted && !isFinishing && "animate-pulse-glow")}
+        className={cn(
+          "w-full rounded-full",
+          hasMeals && !allCompleted && !isFinishing && "animate-pulse-glow"
+        )}
         disabled={!hasMeals || isFinishing}
         onClick={() => startFinishing(() => completeAllMeals())}
       >

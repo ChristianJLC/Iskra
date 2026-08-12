@@ -586,12 +586,12 @@ function BottomSheet({
       )}
     >
       <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/70 backdrop-blur-md"
         onClick={onClose}
       />
       <div
         className={cn(
-          "relative w-full max-w-md rounded-t-3xl border border-border bg-surface p-6 pb-8 shadow-[0_-8px_40px_rgba(0,0,0,0.15)] transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] md:rounded-3xl md:pb-6 md:shadow-2xl",
+          "glass relative w-full max-w-md rounded-t-3xl p-6 pb-8 shadow-soft transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] md:rounded-3xl md:pb-6",
           open
             ? "translate-y-0 scale-100 opacity-100"
             : "translate-y-8 scale-95 opacity-0 md:translate-y-0"

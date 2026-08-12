@@ -25,7 +25,7 @@ export function ToggleCheckbox({
       className={cn(
         "flex size-5 shrink-0 items-center justify-center rounded-md border transition-colors disabled:cursor-not-allowed disabled:opacity-50",
         checked
-          ? "border-accent bg-accent text-accent-foreground"
+          ? "border-transparent bg-gradient-to-br from-accent to-accent-2 text-white shadow-glow"
           : "border-border bg-surface hover:border-accent"
       )}
     >

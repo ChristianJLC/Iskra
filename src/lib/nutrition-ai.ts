@@ -1,24 +1,46 @@
 import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
+import { MEAL_INGREDIENT_PORTIONS, sumIngredientMacros, type MealIngredient } from "@/lib/meal-ingredients";
 
 const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-5";
 const ANTHROPIC_PHOTO_MODEL = process.env.ANTHROPIC_PHOTO_MODEL || "claude-haiku-4-5-20251001";
 
 export type NutritionEstimate = {
+  title: string;
   description: string;
   calories: number;
   proteinG: number;
   carbsG: number;
   fatG: number;
+  ingredients: MealIngredient[];
 };
 
 export type NutritionEstimateResult =
   | { ok: true; data: NutritionEstimate }
   | { ok: false; error: string };
 
+const INGREDIENT_SCHEMA = {
+  type: "object" as const,
+  properties: {
+    name: { type: "string" as const, description: "Nombre del ingrediente, ej. 'Plátano', 'Pechuga de pollo'." },
+    calories: { type: "integer" as const, description: "Calorías estimadas para la porción de este ingrediente." },
+    protein_g: { type: "number" as const, description: "Proteína en gramos de este ingrediente." },
+    carbs_g: { type: "number" as const, description: "Carbohidratos en gramos de este ingrediente." },
+    fat_g: { type: "number" as const, description: "Grasa en gramos de este ingrediente." },
+    portion_size: {
+      type: ["string", "null"] as const,
+      enum: [...MEAL_INGREDIENT_PORTIONS, null],
+      description:
+        "Tamaño de porción SOLO si el ingrediente es una carne, pollo o pescado (proteína animal principal). " +
+        "null para cualquier otro ingrediente (vegetales, carbohidratos, lácteos, condimentos, suplementos, etc.).",
+    },
+  },
+  required: ["name", "calories", "protein_g", "carbs_g", "fat_g", "portion_size"],
+};
+
 const NUTRITION_TOOL = {
   name: "record_nutrition_estimate",
-  description: "Registra la estimación nutricional de la comida mostrada en la foto.",
+  description: "Registra la estimación nutricional de la comida mostrada en la foto, desglosada por ingrediente.",
   input_schema: {
     type: "object" as const,
     properties: {
@@ -27,10 +49,21 @@ const NUTRITION_TOOL = {
         description:
           "true si la imagen muestra comida identificable; false si no se puede identificar comida (foto borrosa, plato vacío, objeto no comestible, etc.)",
       },
+      title: {
+        type: "string" as const,
+        description:
+          "Nombre corto sugerido para la comida (2-4 palabras), ej. 'Batido Proteico', 'Pollo con arroz'. Cadena vacía si is_food es false.",
+      },
       description: {
         type: "string" as const,
         description:
           "Descripción breve en español de la comida y la porción estimada, ej. 'Plato de pasta con pollo, aprox. 350g'. Si is_food es false, explica brevemente por qué no se pudo identificar.",
+      },
+      ingredients: {
+        type: "array" as const,
+        description:
+          "Lista de ingredientes identificados en la foto, cada uno con su propio aporte nutricional estimado. Arreglo vacío si is_food es false.",
+        items: INGREDIENT_SCHEMA,
       },
       calories: {
         type: "integer" as const,
@@ -49,18 +82,40 @@ const NUTRITION_TOOL = {
         description: "Grasa estimada en gramos. 0 si is_food es false.",
       },
     },
-    required: ["is_food", "description", "calories", "protein_g", "carbs_g", "fat_g"],
+    required: ["is_food", "title", "description", "ingredients", "calories", "protein_g", "carbs_g", "fat_g"],
   },
+};
+
+type IngredientToolInput = {
+  name: string;
+  calories: number;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+  portion_size: (typeof MEAL_INGREDIENT_PORTIONS)[number] | null;
 };
 
 type NutritionToolInput = {
   is_food: boolean;
+  title: string;
   description: string;
+  ingredients: IngredientToolInput[];
   calories: number;
   protein_g: number;
   carbs_g: number;
   fat_g: number;
 };
+
+function mapIngredients(input: IngredientToolInput[]): MealIngredient[] {
+  return input.map((i) => ({
+    name: i.name,
+    calories: Math.round(i.calories),
+    proteinG: i.protein_g,
+    carbsG: i.carbs_g,
+    fatG: i.fat_g,
+    portion: i.portion_size,
+  }));
+}
 
 export async function estimateNutritionFromPhoto(
   base64Image: string,
@@ -77,9 +132,10 @@ export async function estimateNutritionFromPhoto(
       model: ANTHROPIC_PHOTO_MODEL,
       max_tokens: 1024,
       system:
-        "Eres un asistente que estima información nutricional a partir de fotos de comida. " +
-        "Sé conservador y da tu mejor estimación aunque no sea exacta. Responde siempre usando la " +
-        "herramienta record_nutrition_estimate.",
+        "Eres un asistente que estima información nutricional a partir de fotos de comida, desglosada por " +
+        "ingrediente. Sé conservador y da tu mejor estimación aunque no sea exacta. Para cada ingrediente que " +
+        "sea carne, pollo o pescado, clasifica su porción como PEQUENO, MEDIANO o GRANDE; para el resto de " +
+        "ingredientes usa null. Responde siempre usando la herramienta record_nutrition_estimate.",
       tools: [NUTRITION_TOOL],
       tool_choice: { type: "tool", name: "record_nutrition_estimate" },
       messages: [
@@ -115,14 +171,22 @@ export async function estimateNutritionFromPhoto(
       };
     }
 
+    const ingredients = mapIngredients(input.ingredients);
+    const totals =
+      ingredients.length > 0
+        ? sumIngredientMacros(ingredients)
+        : { calories: input.calories, proteinG: input.protein_g, carbsG: input.carbs_g, fatG: input.fat_g };
+
     return {
       ok: true,
       data: {
+        title: input.title || input.description.slice(0, 40),
         description: input.description,
-        calories: Math.round(input.calories),
-        proteinG: input.protein_g,
-        carbsG: input.carbs_g,
-        fatG: input.fat_g,
+        calories: Math.round(totals.calories),
+        proteinG: totals.proteinG,
+        carbsG: totals.carbsG,
+        fatG: totals.fatG,
+        ingredients,
       },
     };
   } catch (error) {
@@ -133,6 +197,81 @@ export async function estimateNutritionFromPhoto(
       return { ok: false, error: "No se pudo conectar con el servicio de análisis. Revisa tu conexión." };
     }
     return { ok: false, error: "Ocurrió un error al analizar la foto." };
+  }
+}
+
+export type IngredientRecalculationResult =
+  | { ok: true; data: { ingredients: MealIngredient[] } }
+  | { ok: false; error: string };
+
+const RECALCULATE_INGREDIENTS_TOOL = {
+  name: "record_ingredient_estimates",
+  description:
+    "Registra la estimación nutricional de cada ingrediente de una lista, asumiendo una porción individual típica.",
+  input_schema: {
+    type: "object" as const,
+    properties: {
+      ingredients: {
+        type: "array" as const,
+        description: "Un elemento por cada nombre de ingrediente recibido, en el mismo orden.",
+        items: INGREDIENT_SCHEMA,
+      },
+    },
+    required: ["ingredients"],
+  },
+};
+
+export async function recalculateNutritionFromIngredients(
+  ingredientNames: string[]
+): Promise<IngredientRecalculationResult> {
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return { ok: false, error: "El cálculo de ingredientes no está configurado." };
+  }
+  if (ingredientNames.length === 0) {
+    return { ok: true, data: { ingredients: [] } };
+  }
+
+  const client = new Anthropic();
+
+  try {
+    const response = await client.messages.create({
+      model: ANTHROPIC_PHOTO_MODEL,
+      max_tokens: 1024,
+      system:
+        "Eres un asistente que estima información nutricional de una lista de ingredientes de comida, " +
+        "asumiendo una porción individual razonable para cada uno. Para cada ingrediente que sea carne, pollo " +
+        "o pescado, clasifica su porción como PEQUENO, MEDIANO o GRANDE; para el resto usa null. Responde " +
+        "siempre usando la herramienta record_ingredient_estimates, con un elemento de salida por cada " +
+        "ingrediente de entrada, en el mismo orden.",
+      tools: [RECALCULATE_INGREDIENTS_TOOL],
+      tool_choice: { type: "tool", name: "record_ingredient_estimates" },
+      messages: [{ role: "user", content: `Ingredientes: ${ingredientNames.join(", ")}` }],
+    });
+
+    if (response.stop_reason === "refusal") {
+      return { ok: false, error: "No se pudo calcular la lista de ingredientes." };
+    }
+
+    const toolUse = response.content.find(
+      (block): block is Anthropic.ToolUseBlock =>
+        block.type === "tool_use" && block.name === "record_ingredient_estimates"
+    );
+
+    if (!toolUse) {
+      return { ok: false, error: "No se pudo calcular la lista de ingredientes." };
+    }
+
+    const input = toolUse.input as { ingredients: IngredientToolInput[] };
+
+    return { ok: true, data: { ingredients: mapIngredients(input.ingredients) } };
+  } catch (error) {
+    if (error instanceof Anthropic.RateLimitError) {
+      return { ok: false, error: "Demasiadas solicitudes, intenta de nuevo en un momento." };
+    }
+    if (error instanceof Anthropic.APIConnectionError) {
+      return { ok: false, error: "No se pudo conectar con el servicio de análisis. Revisa tu conexión." };
+    }
+    return { ok: false, error: "Ocurrió un error al calcular los ingredientes." };
   }
 }
 

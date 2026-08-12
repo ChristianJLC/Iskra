@@ -49,7 +49,7 @@ export default async function PagosMensualesPage() {
           <ArrowLeft className="size-4" />
           Finanzas
         </Link>
-        <h1 className="mt-2 text-xl font-semibold text-foreground">Pagos mensuales</h1>
+        <h1 className="mt-2 text-2xl font-bold tracking-tight text-foreground">Pagos mensuales</h1>
         <p className="text-sm text-muted">Servicios y suscripciones que se repiten cada mes.</p>
       </div>
 

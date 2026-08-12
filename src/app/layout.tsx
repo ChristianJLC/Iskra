@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Rutinas",
+  title: "Iskra",
   description: "Organiza tus comidas, ejercicio, estudio, tareas y finanzas.",
 };
 

@@ -5,19 +5,22 @@ import { prisma } from "@/lib/prisma";
 import { verifySession } from "@/lib/dal";
 import { getMonthBounds } from "@/lib/date";
 
-export async function setBiweeklyIncome(formData: FormData) {
+export async function setFixedIncome(formData: FormData) {
   const { userId } = await verifySession();
 
   const month = Number(formData.get("month"));
   const year = Number(formData.get("year"));
   const biweeklyIncome = Number(formData.get("biweeklyIncome"));
+  const incomeFrequencyRaw = formData.get("incomeFrequency") as string;
 
   if (!month || !year || Number.isNaN(biweeklyIncome) || biweeklyIncome < 0) return;
+  if (!["QUINCENAL", "MENSUAL"].includes(incomeFrequencyRaw)) return;
+  const incomeFrequency = incomeFrequencyRaw as "QUINCENAL" | "MENSUAL";
 
   await prisma.financeSettings.upsert({
     where: { userId_month_year: { userId, month, year } },
-    update: { biweeklyIncome },
-    create: { userId, month, year, biweeklyIncome },
+    update: { biweeklyIncome, incomeFrequency },
+    create: { userId, month, year, biweeklyIncome, incomeFrequency },
   });
 
   revalidatePath("/finanzas");

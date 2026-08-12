@@ -108,7 +108,13 @@ export async function ensureQuincenaIngresos(userId: string) {
 
     if (previous) {
       settings = await prisma.financeSettings.create({
-        data: { userId, month, year, biweeklyIncome: previous.biweeklyIncome },
+        data: {
+          userId,
+          month,
+          year,
+          biweeklyIncome: previous.biweeklyIncome,
+          incomeFrequency: previous.incomeFrequency,
+        },
       });
     }
   }
@@ -116,7 +122,8 @@ export async function ensureQuincenaIngresos(userId: string) {
   const amount = settings ? Number(settings.biweeklyIncome) : 0;
   if (amount <= 0) return;
 
-  const dueDays = now.getDate() >= 16 ? [1, 16] : [1];
+  const isMonthly = settings?.incomeFrequency === "MENSUAL";
+  const dueDays = isMonthly ? [1] : now.getDate() >= 16 ? [1, 16] : [1];
 
   for (const day of dueDays) {
     const date = new Date(year, month - 1, day);
@@ -133,7 +140,11 @@ export async function ensureQuincenaIngresos(userId: string) {
           type: "INGRESO",
           amount,
           date,
-          description: day === 1 ? "Pago quincenal (1-15)" : "Pago quincenal (16-fin de mes)",
+          description: isMonthly
+            ? "Pago mensual"
+            : day === 1
+              ? "Pago quincenal (1-15)"
+              : "Pago quincenal (16-fin de mes)",
         },
       });
     }

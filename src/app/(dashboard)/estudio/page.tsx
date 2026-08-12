@@ -27,7 +27,7 @@ export default async function EstudioPage() {
     <div className="mx-auto max-w-2xl space-y-6">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold text-foreground">Estudio</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">Estudio</h1>
           <p className="text-sm text-muted">{formatDateEs(new Date())}</p>
         </div>
         <Link href="/estudio/historial" className="text-sm font-medium text-accent hover:underline">

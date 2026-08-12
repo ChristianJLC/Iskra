@@ -1,12 +1,12 @@
-import Link from "next/link";
-import { Utensils, Dumbbell, BookOpen, ListChecks, Wallet, ArrowRight } from "lucide-react";
+import { Utensils, Dumbbell, BookOpen, ListChecks, Wallet } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { verifySession, getCurrentUser } from "@/lib/dal";
 import { startOfToday, endOfToday, formatDateEs } from "@/lib/date";
 import { ensureQuincenaIngresos } from "@/lib/finance";
 import { getTodayWorkout, formatMuscleGroups } from "@/lib/exercise";
 import { effectiveMinutes } from "@/lib/study";
-import { Card } from "@/components/ui/card";
+import { DashboardCardsGrid } from "@/components/dashboard-cards";
+import { UserAvatar } from "@/components/user-avatar";
 
 const currency = new Intl.NumberFormat("es-PE", { style: "currency", currency: "PEN" });
 
@@ -49,14 +49,14 @@ export default async function ResumenPage() {
   const cards = [
     {
       href: "/comidas",
-      icon: Utensils,
+      icon: <Utensils className="size-5" />,
       title: "Nutrición",
       value: `${mealsCompleted}/${meals.length || 0}`,
       hint: meals.length ? "completadas hoy" : "sin registros hoy",
     },
     {
       href: "/ejercicio",
-      icon: Dumbbell,
+      icon: <Dumbbell className="size-5" />,
       title: "Ejercicio",
       value:
         todayWorkout.groups.length === 0
@@ -69,21 +69,21 @@ export default async function ResumenPage() {
     },
     {
       href: "/estudio",
-      icon: BookOpen,
+      icon: <BookOpen className="size-5" />,
       title: "Estudio",
       value: studyTarget ? `${studyActual}/${studyTarget} min` : "Sin meta",
       hint: "de tu meta de hoy",
     },
     {
       href: "/organizacion",
-      icon: ListChecks,
+      icon: <ListChecks className="size-5" />,
       title: "Organización",
       value: `${pendingTasks}`,
       hint: "tareas pendientes",
     },
     {
       href: "/finanzas",
-      icon: Wallet,
+      icon: <Wallet className="size-5" />,
       title: "Finanzas",
       value: currency.format(balance),
       hint: "balance del mes",
@@ -92,31 +92,17 @@ export default async function ResumenPage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold text-foreground">Hola, {user.name.split(" ")[0]}</h1>
-        <p className="text-sm text-muted">{formatDateEs(new Date())}</p>
+      <div className="flex items-center gap-3">
+        <UserAvatar avatarId={user.avatarId} size={48} />
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">
+            {user.name.split(" ")[0]}
+          </h1>
+          <p className="text-sm text-muted">{formatDateEs(new Date())}</p>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        {cards.map(({ href, icon: Icon, title, value, hint }) => (
-          <Link key={href} href={href}>
-            <Card className="flex items-center justify-between transition-colors hover:border-accent">
-              <div className="flex items-center gap-3">
-                <div className="flex size-10 items-center justify-center rounded-lg bg-accent/15 text-accent">
-                  <Icon className="size-5" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-foreground">{title}</p>
-                  <p className="text-xs text-muted">
-                    <span className="font-semibold text-foreground">{value}</span> {hint}
-                  </p>
-                </div>
-              </div>
-              <ArrowRight className="size-4 text-muted" />
-            </Card>
-          </Link>
-        ))}
-      </div>
+      <DashboardCardsGrid cards={cards} />
     </div>
   );
 }

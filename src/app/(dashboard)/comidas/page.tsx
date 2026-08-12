@@ -1,19 +1,23 @@
+import Link from "next/link";
+import { ChevronRight } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { verifySession } from "@/lib/dal";
 import { startOfToday, endOfToday, formatDateEs } from "@/lib/date";
-import { toggleMeal, deleteMeal } from "@/actions/meals";
-import { Card } from "@/components/ui/card";
-import { ToggleCheckbox } from "@/components/toggle-checkbox";
-import { DeleteButton } from "@/components/delete-button";
-import { AddMealForm } from "@/components/add-meal-form";
 import { NutritionOnboarding } from "@/components/nutrition-onboarding";
 import { NutritionSummary } from "@/components/nutrition-summary";
+import { MealTypeCard } from "@/components/meal-type-card";
+import { WaterCard } from "@/components/water-card";
 import { DAILY_PHOTO_LIMIT } from "@/lib/meal-photo";
+import { getTodayGlasses } from "@/lib/water";
+import { parseStoredIngredients } from "@/lib/meal-ingredients";
 
-const MEAL_LABELS: Record<string, string> = {
+const MEAL_TYPES = ["DESAYUNO", "ALMUERZO", "CENA", "SNACK"] as const;
+
+const MEAL_LABELS: Record<(typeof MEAL_TYPES)[number], string> = {
   DESAYUNO: "Desayuno",
   ALMUERZO: "Almuerzo",
   CENA: "Cena",
+  SNACK: "Snack",
 };
 
 export default async function ComidasPage() {
@@ -24,7 +28,7 @@ export default async function ComidasPage() {
     return <NutritionOnboarding />;
   }
 
-  const [meals, photosUsedToday] = await Promise.all([
+  const [meals, photosUsedToday, waterGlasses, savedMealsRaw] = await Promise.all([
     prisma.mealEntry.findMany({
       where: { userId, date: { gte: startOfToday(), lt: endOfToday() } },
       orderBy: { createdAt: "asc" },
@@ -32,7 +36,22 @@ export default async function ComidasPage() {
     prisma.mealPhotoAnalysis.count({
       where: { userId, createdAt: { gte: startOfToday(), lt: endOfToday() } },
     }),
+    getTodayGlasses(userId),
+    prisma.savedMeal.findMany({
+      where: { userId },
+      orderBy: { updatedAt: "desc" },
+    }),
   ]);
+
+  const savedMeals = savedMealsRaw.map((meal) => ({
+    id: meal.id,
+    title: meal.title,
+    calories: meal.calories,
+    proteinG: meal.proteinG,
+    carbsG: meal.carbsG,
+    fatG: meal.fatG,
+    ingredients: parseStoredIngredients(meal.ingredients),
+  }));
 
   const totals = meals.reduce(
     (acc, meal) => ({
@@ -63,9 +82,18 @@ export default async function ComidasPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold text-foreground">Nutrición</h1>
-        <p className="text-sm text-muted">{formatDateEs(new Date())}</p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">Nutrición</h1>
+          <p className="text-sm text-muted">{formatDateEs(new Date())}</p>
+        </div>
+        <Link
+          href="/comidas/alimentos"
+          className="flex items-center gap-1 text-sm text-muted hover:text-foreground"
+        >
+          Mis alimentos
+          <ChevronRight className="size-4" />
+        </Link>
       </div>
 
       <NutritionSummary
@@ -75,42 +103,19 @@ export default async function ComidasPage() {
         allCompleted={meals.length > 0 && meals.every((m) => m.completed)}
       />
 
-      <Card>
-        <AddMealForm remainingPhotos={Math.max(0, DAILY_PHOTO_LIMIT - photosUsedToday)} />
-      </Card>
-
-      <div className="space-y-3">
-        {meals.length === 0 && (
-          <p className="text-sm text-muted">Aún no has registrado comidas hoy.</p>
-        )}
-
-        {meals.map((meal) => (
-          <Card key={meal.id} className="flex items-start gap-3 py-4">
-            <ToggleCheckbox
-              checked={meal.completed}
-              action={toggleMeal.bind(null, meal.id, !meal.completed)}
-            />
-            <div className="min-w-0 flex-1">
-              <p className="text-xs font-medium uppercase tracking-wide text-accent">
-                {MEAL_LABELS[meal.type]}
-              </p>
-              <p
-                className={
-                  meal.completed
-                    ? "text-sm text-muted line-through"
-                    : "text-sm text-foreground"
-                }
-              >
-                {meal.description}
-              </p>
-              {meal.notes && <p className="mt-0.5 text-xs text-muted">{meal.notes}</p>}
-              {meal.calories != null && (
-                <p className="mt-0.5 text-xs text-muted">{meal.calories} kcal</p>
-              )}
-            </div>
-            <DeleteButton action={deleteMeal.bind(null, meal.id)} />
-          </Card>
+      <div className="space-y-4">
+        {MEAL_TYPES.map((type) => (
+          <MealTypeCard
+            key={type}
+            type={type}
+            label={MEAL_LABELS[type]}
+            meals={meals.filter((meal) => meal.type === type)}
+            remainingPhotos={Math.max(0, DAILY_PHOTO_LIMIT - photosUsedToday)}
+            savedMeals={savedMeals}
+          />
         ))}
+
+        <WaterCard glasses={waterGlasses} />
       </div>
     </div>
   );

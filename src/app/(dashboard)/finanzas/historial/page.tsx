@@ -20,7 +20,7 @@ export default async function HistorialPage() {
           <ArrowLeft className="size-4" />
           Finanzas
         </Link>
-        <h1 className="mt-2 text-xl font-semibold text-foreground">Historial</h1>
+        <h1 className="mt-2 text-2xl font-bold tracking-tight text-foreground">Historial</h1>
       </div>
 
       {months.length === 0 && (

@@ -1,11 +1,22 @@
 "use client";
 
-import { useRef, useState, useTransition, type ChangeEvent } from "react";
+import { useRef, useState, useTransition } from "react";
 import { addMeal } from "@/actions/meals";
 import { analyzeMealPhoto } from "@/actions/analyze-meal-photo";
+import { recalculateIngredients } from "@/actions/recalculate-ingredients";
+import { sumIngredientMacros, type MealIngredient } from "@/lib/meal-ingredients";
 import { DAILY_PHOTO_LIMIT } from "@/lib/meal-photo";
-import { Input, Label, FieldError } from "@/components/ui/input";
+import { Label, Textarea, FieldError } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { SegmentedControl } from "@/components/ui/segmented-control";
+import { AnalyzingSpinner } from "@/components/ui/analyzing-spinner";
 import { SubmitButton } from "@/components/submit-button";
+import { CameraCapture } from "@/components/camera-capture";
+import { MealAnalysisResult } from "@/components/meal-analysis-result";
+import { SavedMealPicker, type SavedMealSummary } from "@/components/saved-meal-picker";
+
+const TEXT_PLACEHOLDER = "Título\n• 2 huevos\n• Carne porción pequeña...";
 
 async function compressImage(file: File, maxDimension = 1024, quality = 0.7): Promise<File> {
   const bitmap = await createImageBitmap(file);
@@ -27,44 +38,64 @@ async function compressImage(file: File, maxDimension = 1024, quality = 0.7): Pr
   return new File([blob], "meal.jpg", { type: "image/jpeg" });
 }
 
-const EMPTY_FORM = {
-  description: "",
-  calories: "",
-  proteinG: "",
-  carbsG: "",
-  fatG: "",
-};
+function supportsLiveCamera() {
+  return typeof navigator !== "undefined" && Boolean(navigator.mediaDevices?.getUserMedia);
+}
 
-export function AddMealForm({ remainingPhotos }: { remainingPhotos: number }) {
+type InputMode = "FOTO" | "TEXTO";
+
+const INPUT_MODE_OPTIONS: { value: InputMode; label: string }[] = [
+  { value: "FOTO", label: "Foto" },
+  { value: "TEXTO", label: "Texto" },
+];
+
+export function AddMealForm({
+  type,
+  remainingPhotos,
+  savedMeals = [],
+  onDone,
+}: {
+  type: "DESAYUNO" | "ALMUERZO" | "CENA" | "SNACK";
+  remainingPhotos: number;
+  savedMeals?: SavedMealSummary[];
+  onDone?: () => void;
+}) {
+  const [inputMode, setInputMode] = useState<InputMode>("FOTO");
   const [isAnalyzing, startAnalysis] = useTransition();
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [remaining, setRemaining] = useState(remainingPhotos);
-  const [description, setDescription] = useState(EMPTY_FORM.description);
-  const [calories, setCalories] = useState(EMPTY_FORM.calories);
-  const [proteinG, setProteinG] = useState(EMPTY_FORM.proteinG);
-  const [carbsG, setCarbsG] = useState(EMPTY_FORM.carbsG);
-  const [fatG, setFatG] = useState(EMPTY_FORM.fatG);
-  const photoInputRef = useRef<HTMLInputElement>(null);
+  const [showCamera, setShowCamera] = useState(false);
+  const fallbackFileInputRef = useRef<HTMLInputElement>(null);
+  const [description, setDescription] = useState("");
+  const [ingredients, setIngredients] = useState<MealIngredient[]>([]);
+  const [textDraft, setTextDraft] = useState("");
 
   function resetForm() {
-    setDescription(EMPTY_FORM.description);
-    setCalories(EMPTY_FORM.calories);
-    setProteinG(EMPTY_FORM.proteinG);
-    setCarbsG(EMPTY_FORM.carbsG);
-    setFatG(EMPTY_FORM.fatG);
+    setDescription("");
+    setIngredients([]);
+    setTextDraft("");
     setAnalysisError(null);
-    if (photoInputRef.current) photoInputRef.current.value = "";
   }
 
   async function handleSubmit(formData: FormData) {
+    formData.set("description", description || ingredients.map((i) => i.name).join(", "));
+
+    if (ingredients.length > 0) {
+      const totals = sumIngredientMacros(ingredients);
+      formData.set("ingredients", JSON.stringify(ingredients));
+      formData.set("calories", String(Math.round(totals.calories)));
+      formData.set("proteinG", String(totals.proteinG));
+      formData.set("carbsG", String(totals.carbsG));
+      formData.set("fatG", String(totals.fatG));
+    }
+
     await addMeal(formData);
     resetForm();
+    onDone?.();
   }
 
-  function handlePhotoChange(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
+  function handleCapturedPhoto(file: File) {
+    setShowCamera(false);
     setAnalysisError(null);
 
     startAnalysis(async () => {
@@ -80,125 +111,140 @@ export function AddMealForm({ remainingPhotos }: { remainingPhotos: number }) {
         return;
       }
 
-      setDescription(result.data.description);
-      setCalories(String(result.data.calories));
-      setProteinG(String(result.data.proteinG));
-      setCarbsG(String(result.data.carbsG));
-      setFatG(String(result.data.fatG));
+      setDescription(result.data.title);
+      setIngredients(result.data.ingredients);
     });
   }
 
+  function handleAnalyzeText() {
+    const lines = textDraft
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+    if (lines.length === 0) return;
+
+    const [titleLine, ...ingredientLines] = lines;
+
+    setAnalysisError(null);
+    startAnalysis(async () => {
+      if (ingredientLines.length === 0) {
+        setAnalysisError("Escribe al menos un ingrediente además del título.");
+        return;
+      }
+
+      const result = await recalculateIngredients(ingredientLines);
+      if (!result.ok) {
+        setAnalysisError(result.error);
+        return;
+      }
+
+      setDescription(titleLine);
+      setIngredients(result.data.ingredients);
+      setTextDraft("");
+    });
+  }
+
+  function handleSelectSavedMeal(meal: SavedMealSummary) {
+    setDescription(meal.title);
+    setIngredients(meal.ingredients);
+  }
+
+  const hasResult = ingredients.length > 0;
+
   return (
     <form action={handleSubmit} className="space-y-4">
-      <div>
-        <Label htmlFor="photo">Foto de la comida (opcional)</Label>
-        <input
-          id="photo"
-          ref={photoInputRef}
-          type="file"
-          accept="image/*"
-          capture="environment"
-          disabled={isAnalyzing || remaining <= 0}
-          onChange={handlePhotoChange}
-          className="w-full text-sm text-muted file:mr-3 file:rounded-lg file:border-0 file:bg-accent file:px-3 file:py-2 file:text-sm file:text-accent-foreground disabled:opacity-50"
+      {isAnalyzing ? (
+        <Card className="flex flex-col items-center gap-3 py-8">
+          <AnalyzingSpinner className="size-12" />
+          <p className="text-sm text-muted">Analizando tu comida…</p>
+        </Card>
+      ) : hasResult ? (
+        <MealAnalysisResult
+          description={description}
+          onDescriptionChange={setDescription}
+          ingredients={ingredients}
+          onIngredientsChange={setIngredients}
         />
-        {isAnalyzing && <p className="mt-1 text-xs text-muted">Analizando foto…</p>}
-        {!isAnalyzing && (
-          <p className="mt-1 text-xs text-muted">
-            {remaining > 0
-              ? `Te quedan ${remaining} de ${DAILY_PHOTO_LIMIT} fotos por analizar hoy.`
-              : `Llegaste al límite de ${DAILY_PHOTO_LIMIT} fotos analizadas hoy. Ingresa los datos manualmente.`}
-          </p>
-        )}
-        <FieldError messages={analysisError ? [analysisError] : undefined} />
-      </div>
-
-      <div>
-        <Label htmlFor="type">Tipo</Label>
-        <select
-          id="type"
-          name="type"
-          required
-          className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground outline-none focus:border-accent"
-        >
-          <option value="DESAYUNO">Desayuno</option>
-          <option value="ALMUERZO">Almuerzo</option>
-          <option value="CENA">Cena</option>
-        </select>
-      </div>
-
-      <div>
-        <Label htmlFor="description">¿Qué vas a comer?</Label>
-        <Input
-          id="description"
-          name="description"
-          placeholder="Ej. Avena con fruta"
-          required
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-        />
-      </div>
-
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <div>
-          <Label htmlFor="calories">Calorías</Label>
-          <Input
-            id="calories"
-            name="calories"
-            type="number"
-            min={0}
-            inputMode="numeric"
-            value={calories}
-            onChange={(e) => setCalories(e.target.value)}
+      ) : (
+        <>
+          <SegmentedControl
+            layoutId={`add-meal-input-mode-${type}`}
+            options={INPUT_MODE_OPTIONS}
+            value={inputMode}
+            onChange={setInputMode}
           />
-        </div>
-        <div>
-          <Label htmlFor="proteinG">Proteína (g)</Label>
-          <Input
-            id="proteinG"
-            name="proteinG"
-            type="number"
-            min={0}
-            step="0.1"
-            inputMode="decimal"
-            value={proteinG}
-            onChange={(e) => setProteinG(e.target.value)}
-          />
-        </div>
-        <div>
-          <Label htmlFor="carbsG">Carbs (g)</Label>
-          <Input
-            id="carbsG"
-            name="carbsG"
-            type="number"
-            min={0}
-            step="0.1"
-            inputMode="decimal"
-            value={carbsG}
-            onChange={(e) => setCarbsG(e.target.value)}
-          />
-        </div>
-        <div>
-          <Label htmlFor="fatG">Grasa (g)</Label>
-          <Input
-            id="fatG"
-            name="fatG"
-            type="number"
-            min={0}
-            step="0.1"
-            inputMode="decimal"
-            value={fatG}
-            onChange={(e) => setFatG(e.target.value)}
-          />
-        </div>
-      </div>
 
-      <div>
-        <Label htmlFor="notes">Notas (opcional)</Label>
-        <Input id="notes" name="notes" placeholder="Ingredientes, contexto, etc." />
-      </div>
+          {inputMode === "FOTO" ? (
+            <div>
+              <Label>Foto de la comida</Label>
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={remaining <= 0}
+                onClick={() => {
+                  if (supportsLiveCamera()) {
+                    setShowCamera(true);
+                  } else {
+                    fallbackFileInputRef.current?.click();
+                  }
+                }}
+              >
+                Analizar
+              </Button>
+              <input
+                ref={fallbackFileInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = "";
+                  if (file) handleCapturedPhoto(file);
+                }}
+              />
+              <p className="mt-1 text-xs text-muted">
+                {remaining > 0
+                  ? `Te quedan ${remaining} de ${DAILY_PHOTO_LIMIT} fotos por analizar hoy.`
+                  : `Llegaste al límite de ${DAILY_PHOTO_LIMIT} fotos analizadas hoy. Cambia a "Texto".`}
+              </p>
+              <FieldError messages={analysisError ? [analysisError] : undefined} />
+            </div>
+          ) : (
+            <div>
+              <Label>Describe tu comida</Label>
+              <Textarea
+                rows={4}
+                placeholder={TEXT_PLACEHOLDER}
+                value={textDraft}
+                onChange={(e) => setTextDraft(e.target.value)}
+              />
+              <Button
+                type="button"
+                variant="secondary"
+                className="mt-2 w-full"
+                disabled={!textDraft.trim()}
+                onClick={handleAnalyzeText}
+              >
+                Analizar
+              </Button>
+              <FieldError messages={analysisError ? [analysisError] : undefined} />
+            </div>
+          )}
 
-      <SubmitButton>Agregar comida</SubmitButton>
+          {savedMeals.length > 0 && (
+            <SavedMealPicker savedMeals={savedMeals} onSelect={handleSelectSavedMeal} />
+          )}
+        </>
+      )}
+
+      {showCamera && (
+        <CameraCapture onCapture={handleCapturedPhoto} onClose={() => setShowCamera(false)} />
+      )}
+
+      <input type="hidden" name="type" value={type} />
+
+      <SubmitButton disabled={!hasResult}>Agregar comida</SubmitButton>
     </form>
   );
 }

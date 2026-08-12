@@ -65,3 +65,13 @@ export function getWeekBounds(date: Date) {
   const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 7);
   return { start, end };
 }
+
+export function getYearBounds(year: number) {
+  const start = new Date(year, 0, 1);
+  const end = new Date(year + 1, 0, 1);
+  return { start, end };
+}
+
+export function daysInYear(year: number) {
+  return Math.round((getYearBounds(year).end.getTime() - getYearBounds(year).start.getTime()) / 86400000);
+}

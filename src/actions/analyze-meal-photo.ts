@@ -5,6 +5,7 @@ import { verifySession } from "@/lib/dal";
 import { startOfToday, endOfToday } from "@/lib/date";
 import { estimateNutritionFromPhoto, type NutritionEstimateResult } from "@/lib/nutrition-ai";
 import { DAILY_PHOTO_LIMIT } from "@/lib/meal-photo";
+import { cacheIngredients } from "@/lib/ingredient-cache";
 
 const MAX_PHOTO_BYTES = 6 * 1024 * 1024;
 const ALLOWED_MEDIA_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
@@ -51,6 +52,10 @@ export async function analyzeMealPhoto(formData: FormData): Promise<AnalyzeMealP
     base64,
     file.type as "image/jpeg" | "image/png" | "image/webp"
   );
+
+  if (result.ok && result.data.ingredients.length > 0) {
+    await cacheIngredients(userId, result.data.ingredients);
+  }
 
   return { ...result, remaining };
 }

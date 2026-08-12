@@ -33,13 +33,15 @@ export default async function FinanzasPage() {
   ]);
 
   const biweeklyIncome = settings ? Number(settings.biweeklyIncome) : 0;
+  const incomeFrequency = settings?.incomeFrequency ?? "QUINCENAL";
   const { ingresos, extras, gastos, balance } = getMonthTotals(entries);
+  const serializedEntries = entries.map((entry) => ({ ...entry, amount: Number(entry.amount) }));
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold text-foreground">Finanzas</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">Finanzas</h1>
           <p className="text-sm text-muted">{formatMonthYearEs(month, year)}</p>
         </div>
         <div className="flex flex-col items-end gap-1 text-sm font-medium">
@@ -83,11 +85,11 @@ export default async function FinanzasPage() {
         <FinanceChart ingresos={ingresos} extras={extras} gastos={gastos} balance={balance} />
       </Card>
 
-      <IncomeForm month={month} year={year} biweeklyIncome={biweeklyIncome} />
+      <IncomeForm month={month} year={year} biweeklyIncome={biweeklyIncome} incomeFrequency={incomeFrequency} />
 
       <FinanceEntryForm />
 
-      <FinanceEntryList entries={entries} />
+      <FinanceEntryList entries={serializedEntries} />
     </div>
   );
 }

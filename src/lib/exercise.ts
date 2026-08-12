@@ -53,6 +53,46 @@ export async function getTodayWorkout(userId: string) {
   return { groups, completed: Boolean(completion) };
 }
 
+const STREAK_LOOKBACK_DAYS = 120;
+
+export async function getWorkoutStreak(userId: string) {
+  const schedule = await prisma.workoutSchedule.findUnique({ where: { userId } });
+  const today = new Date();
+  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const lookbackStart = new Date(
+    todayStart.getFullYear(),
+    todayStart.getMonth(),
+    todayStart.getDate() - STREAK_LOOKBACK_DAYS
+  );
+
+  const completions = await prisma.workoutCompletion.findMany({
+    where: { userId, date: { gte: lookbackStart, lte: todayStart } },
+    select: { date: true },
+  });
+  const completedDates = new Set(completions.map((c) => c.date.getTime()));
+
+  let streak = 0;
+  let cursor = todayStart;
+
+  for (let i = 0; i < STREAK_LOOKBACK_DAYS; i++) {
+    const groups = getScheduledGroups(schedule, cursor);
+    const isRestDay = groups.length === 0;
+    const isToday = i === 0;
+
+    if (!isRestDay) {
+      if (completedDates.has(cursor.getTime())) {
+        streak += 1;
+      } else if (!isToday) {
+        break;
+      }
+    }
+
+    cursor = new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate() - 1);
+  }
+
+  return streak;
+}
+
 export async function getMonthlyCompliance(userId: string, month: number, year: number) {
   const schedule = await prisma.workoutSchedule.findUnique({ where: { userId } });
   const { start, end } = getMonthBounds(month, year);

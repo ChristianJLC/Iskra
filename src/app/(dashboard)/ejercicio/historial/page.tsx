@@ -18,7 +18,7 @@ export default async function EjercicioHistorialPage() {
           <ArrowLeft className="size-4" />
           Ejercicio
         </Link>
-        <h1 className="mt-2 text-xl font-semibold text-foreground">Historial de cumplimiento</h1>
+        <h1 className="mt-2 text-2xl font-bold tracking-tight text-foreground">Historial de cumplimiento</h1>
       </div>
 
       {months.length === 0 && (

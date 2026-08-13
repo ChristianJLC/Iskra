@@ -1,15 +1,65 @@
-import { type ComponentProps } from "react";
+"use client";
+
+import { useState, type ComponentProps, type ReactNode } from "react";
+import { Eye, EyeOff } from "lucide-react";
 import { cn } from "@/lib/cn";
 
-export function Input({ className, ...props }: ComponentProps<"input">) {
-  return (
+const inputClasses =
+  "w-full rounded-xl border border-border bg-surface px-3 py-2 text-base text-foreground placeholder:text-muted outline-none transition-colors focus:border-accent md:text-sm";
+
+export function Input({
+  className,
+  icon,
+  ...props
+}: ComponentProps<"input"> & { icon?: ReactNode }) {
+  const input = (
     <input
-      className={cn(
-        "w-full rounded-xl border border-border bg-surface px-3 py-2 text-base text-foreground placeholder:text-muted outline-none transition-colors focus:border-accent md:text-sm",
-        className
-      )}
+      className={cn(inputClasses, icon && "pl-10", className)}
       {...props}
     />
+  );
+
+  if (!icon) return input;
+
+  return (
+    <div className="relative">
+      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted">
+        {icon}
+      </span>
+      {input}
+    </div>
+  );
+}
+
+export function PasswordInput({
+  className,
+  icon,
+  ...props
+}: Omit<ComponentProps<"input">, "type"> & { icon?: ReactNode }) {
+  const [visible, setVisible] = useState(false);
+
+  return (
+    <div className="relative">
+      {icon && (
+        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted">
+          {icon}
+        </span>
+      )}
+      <input
+        type={visible ? "text" : "password"}
+        className={cn(inputClasses, icon && "pl-10", "pr-10", className)}
+        {...props}
+      />
+      <button
+        type="button"
+        tabIndex={-1}
+        onClick={() => setVisible((v) => !v)}
+        aria-label={visible ? "Ocultar contraseña" : "Mostrar contraseña"}
+        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted transition-colors hover:text-foreground"
+      >
+        {visible ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+      </button>
+    </div>
   );
 }
 

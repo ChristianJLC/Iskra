@@ -36,6 +36,16 @@ model User {
   savedIngredients   SavedIngredient[]
 }
 
+model PendingSignup {
+  id                       String   @id @default(cuid())
+  email                    String   @unique
+  name                     String
+  passwordHash             String
+  verificationCode         String
+  verificationCodeAttempts Int      @default(0)
+  createdAt                DateTime @default(now())
+}
+
 model SavedIngredient {
   id        String   @id @default(cuid())
   userId    String

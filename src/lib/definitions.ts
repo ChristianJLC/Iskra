@@ -19,12 +19,21 @@ export const LoginFormSchema = z.object({
   password: z.string().min(1, { error: "La contraseña es obligatoria." }),
 });
 
+export const VerifyFormSchema = z.object({
+  email: z.email({ error: "Ingresa un correo válido." }).trim(),
+  code: z
+    .string()
+    .trim()
+    .regex(/^\d{6}$/, { error: "El código debe tener 6 dígitos." }),
+});
+
 export type FormState =
   | {
       errors?: {
         name?: string[];
         email?: string[];
         password?: string[];
+        code?: string[];
       };
       message?: string;
     }

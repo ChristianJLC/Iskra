@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { decrypt } from "@/lib/session";
 import { cookies } from "next/headers";
 
-const publicRoutes = ["/login", "/registro"];
+const publicRoutes = ["/login", "/registro", "/verificar"];
 
 export default async function proxy(req: NextRequest) {
   const path = req.nextUrl.pathname;

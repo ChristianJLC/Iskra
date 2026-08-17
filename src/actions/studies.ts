@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { verifySession } from "@/lib/dal";
+import { verifySession, getUserTimezone } from "@/lib/dal";
 import { startOfToday, endOfToday } from "@/lib/date";
 import { effectiveSeconds } from "@/lib/study";
 
@@ -14,6 +14,7 @@ function revalidateStudy() {
 
 export async function createSubjectAndAddToday(formData: FormData) {
   const { userId } = await verifySession();
+  const timezone = await getUserTimezone();
 
   const name = (formData.get("name") as string)?.trim();
   const targetMinutes = Number(formData.get("targetMinutes"));
@@ -27,7 +28,7 @@ export async function createSubjectAndAddToday(formData: FormData) {
   });
 
   const existing = await prisma.studyEntry.findFirst({
-    where: { userId, subjectId: subject.id, date: { gte: startOfToday(), lt: endOfToday() } },
+    where: { userId, subjectId: subject.id, date: { gte: startOfToday(timezone), lt: endOfToday(timezone) } },
   });
   if (!existing) {
     await prisma.studyEntry.create({
@@ -45,12 +46,13 @@ export async function createSubjectAndAddToday(formData: FormData) {
 
 export async function addTodayEntryFromSubject(subjectId: string) {
   const { userId } = await verifySession();
+  const timezone = await getUserTimezone();
 
   const subject = await prisma.studySubject.findFirst({ where: { id: subjectId, userId } });
   if (!subject) return;
 
   const existing = await prisma.studyEntry.findFirst({
-    where: { userId, subjectId: subject.id, date: { gte: startOfToday(), lt: endOfToday() } },
+    where: { userId, subjectId: subject.id, date: { gte: startOfToday(timezone), lt: endOfToday(timezone) } },
   });
   if (existing) return;
 

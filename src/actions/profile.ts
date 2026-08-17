@@ -23,3 +23,17 @@ export async function setAvatar(avatarId: string | null) {
   await prisma.user.update({ where: { id: userId }, data: { avatarId } });
   revalidatePath("/", "layout");
 }
+
+export async function syncTimezone(timezone: string) {
+  const { userId } = await verifySession();
+
+  if (typeof timezone !== "string" || timezone.length === 0 || timezone.length > 100) return;
+  try {
+    new Intl.DateTimeFormat(undefined, { timeZone: timezone });
+  } catch {
+    return;
+  }
+
+  await prisma.user.update({ where: { id: userId }, data: { timezone } });
+  revalidatePath("/", "layout");
+}

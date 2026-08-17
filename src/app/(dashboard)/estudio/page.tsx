@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { verifySession } from "@/lib/dal";
+import { verifySession, getUserTimezone } from "@/lib/dal";
 import { startOfToday, endOfToday, formatDateEs } from "@/lib/date";
 import { effectiveSeconds } from "@/lib/study";
 import { deleteStudy } from "@/actions/studies";
@@ -12,11 +12,12 @@ import { cn } from "@/lib/cn";
 
 export default async function EstudioPage() {
   const { userId } = await verifySession();
+  const timezone = await getUserTimezone();
 
   const [subjects, studies] = await Promise.all([
     prisma.studySubject.findMany({ where: { userId }, orderBy: { createdAt: "asc" } }),
     prisma.studyEntry.findMany({
-      where: { userId, date: { gte: startOfToday(), lt: endOfToday() } },
+      where: { userId, date: { gte: startOfToday(timezone), lt: endOfToday(timezone) } },
       orderBy: { createdAt: "asc" },
     }),
   ]);
@@ -28,7 +29,7 @@ export default async function EstudioPage() {
       <div className="flex items-start justify-between gap-3">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-foreground">Estudio</h1>
-          <p className="text-sm text-muted">{formatDateEs(new Date())}</p>
+          <p className="text-sm text-muted">{formatDateEs(new Date(), timezone)}</p>
         </div>
         <Link href="/estudio/historial" className="text-sm font-medium text-accent hover:underline">
           Ver historial

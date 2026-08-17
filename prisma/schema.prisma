@@ -19,6 +19,7 @@ model User {
   accentColor  String?
   accentColor2 String?
   avatarId     String?
+  timezone     String   @default("America/Lima")
 
   meals              MealEntry[]
   savedMeals         SavedMeal[]

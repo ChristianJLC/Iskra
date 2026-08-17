@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { prisma } from "@/lib/prisma";
-import { verifySession } from "@/lib/dal";
+import { verifySession, getUserTimezone } from "@/lib/dal";
 import { formatMonthYearEs, formatShortDateEs, getMonthBounds } from "@/lib/date";
 import { getMonthlyCompliance } from "@/lib/exercise";
 import { formatMuscleGroups, dayIcon } from "@/lib/routine-groups";
@@ -22,11 +22,12 @@ export default async function EjercicioHistorialMesPage({
   }
 
   const { userId } = await verifySession();
+  const timezone = await getUserTimezone();
 
-  const { start, end } = getMonthBounds(month, year);
+  const { start, end } = getMonthBounds(timezone, month, year);
 
   const [{ scheduled, completed, rate }, completions] = await Promise.all([
-    getMonthlyCompliance(userId, month, year),
+    getMonthlyCompliance(userId, month, year, timezone),
     prisma.workoutCompletion.findMany({
       where: { userId, date: { gte: start, lt: end } },
       orderBy: { date: "asc" },
@@ -65,7 +66,7 @@ export default async function EjercicioHistorialMesPage({
           const Icon = dayIcon(c.groups);
           return (
             <Card key={c.id} className="flex items-center justify-between py-3">
-              <p className="text-sm text-foreground">{formatShortDateEs(c.date)}</p>
+              <p className="text-sm text-foreground">{formatShortDateEs(c.date, timezone)}</p>
               <span className="flex items-center gap-1 rounded-full bg-accent/15 px-2 py-0.5 text-[10px] font-medium text-accent">
                 <Icon className="size-3" />
                 {formatMuscleGroups(c.groups)}

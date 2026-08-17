@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/lib/dal";
 import { SidebarNav, BottomNav } from "@/components/nav-links";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { LogoutButton } from "@/components/logout-button";
+import { TimezoneSync } from "@/components/timezone-sync";
 import { resolveAccentStyle } from "@/lib/accent-color";
 
 export default async function DashboardLayout({
@@ -16,6 +17,7 @@ export default async function DashboardLayout({
 
   return (
     <div id="dashboard-shell" className="min-h-screen md:flex" style={accentStyle}>
+      <TimezoneSync currentTimezone={user.timezone} />
       <aside className="hidden md:flex md:w-64 md:flex-col md:border-r md:border-border md:bg-surface-1 md:px-4 md:py-6">
         <div className="mb-6 px-2">
           <p className="text-lg font-bold tracking-tight text-foreground">Iskra</p>

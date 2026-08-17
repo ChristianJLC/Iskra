@@ -29,6 +29,7 @@ export const getCurrentUser = cache(async () => {
       accentColor: true,
       accentColor2: true,
       avatarId: true,
+      timezone: true,
     },
   });
 
@@ -37,4 +38,15 @@ export const getCurrentUser = cache(async () => {
   }
 
   return user;
+});
+
+export const getUserTimezone = cache(async () => {
+  const session = await verifySession();
+
+  const user = await prisma.user.findUnique({
+    where: { id: session.userId },
+    select: { timezone: true },
+  });
+
+  return user?.timezone ?? "America/Lima";
 });

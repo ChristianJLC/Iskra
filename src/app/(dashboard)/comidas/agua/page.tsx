@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { verifySession } from "@/lib/dal";
+import { verifySession, getUserTimezone } from "@/lib/dal";
 import { getWaterStats } from "@/lib/water";
 import { WaterStatsView } from "@/components/water-stats";
 
 export default async function AguaPage() {
   const { userId } = await verifySession();
-  const initialStats = await getWaterStats(userId, "week", 0);
+  const timezone = await getUserTimezone();
+  const initialStats = await getWaterStats(userId, timezone, "week", 0);
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">

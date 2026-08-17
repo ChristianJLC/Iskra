@@ -2,8 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { verifySession } from "@/lib/dal";
-import { getMonthBounds } from "@/lib/date";
+import { verifySession, getUserTimezone } from "@/lib/dal";
+import { getMonthBounds, getZonedCalendarDate } from "@/lib/date";
 
 export async function setFixedIncome(formData: FormData) {
   const { userId } = await verifySession();
@@ -106,8 +106,9 @@ export async function markBillPaid(billId: string) {
   const bill = await prisma.recurringBill.findFirst({ where: { id: billId, userId } });
   if (!bill) return;
 
-  const now = new Date();
-  const { start, end } = getMonthBounds(now.getMonth() + 1, now.getFullYear());
+  const timezone = await getUserTimezone();
+  const { year, month } = getZonedCalendarDate(timezone);
+  const { start, end } = getMonthBounds(timezone, month, year);
 
   const alreadyPaid = await prisma.financeEntry.findFirst({
     where: { userId, recurringBillId: billId, date: { gte: start, lt: end } },
@@ -133,8 +134,9 @@ export async function markBillPaid(billId: string) {
 export async function unmarkBillPaid(billId: string) {
   const { userId } = await verifySession();
 
-  const now = new Date();
-  const { start, end } = getMonthBounds(now.getMonth() + 1, now.getFullYear());
+  const timezone = await getUserTimezone();
+  const { year, month } = getZonedCalendarDate(timezone);
+  const { start, end } = getMonthBounds(timezone, month, year);
 
   await prisma.financeEntry.deleteMany({
     where: { userId, recurringBillId: billId, date: { gte: start, lt: end } },

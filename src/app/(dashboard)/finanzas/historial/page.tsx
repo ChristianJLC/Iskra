@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { verifySession } from "@/lib/dal";
-import { formatMonthYearEs } from "@/lib/date";
+import { verifySession, getUserTimezone } from "@/lib/dal";
+import { formatMonthYearEs, getZonedCalendarDate } from "@/lib/date";
 import { getHistorialMonths } from "@/lib/finance";
 import { Card } from "@/components/ui/card";
 
@@ -9,9 +9,10 @@ const currency = new Intl.NumberFormat("es-PE", { style: "currency", currency: "
 
 export default async function HistorialPage() {
   const { userId } = await verifySession();
+  const timezone = await getUserTimezone();
 
-  const now = new Date();
-  const months = await getHistorialMonths(userId, now.getMonth() + 1, now.getFullYear());
+  const { year, month } = getZonedCalendarDate(timezone);
+  const months = await getHistorialMonths(userId, month, year, timezone);
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">

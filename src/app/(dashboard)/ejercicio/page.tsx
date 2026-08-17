@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { verifySession } from "@/lib/dal";
+import { verifySession, getUserTimezone } from "@/lib/dal";
 import { formatDateEs } from "@/lib/date";
 import { getCurrentWeekView, getWorkoutStreak } from "@/lib/exercise";
 import { formatMuscleGroups, dayIcon } from "@/lib/routine-groups";
@@ -13,11 +13,12 @@ import { cn } from "@/lib/cn";
 
 export default async function EjercicioPage() {
   const { userId } = await verifySession();
+  const timezone = await getUserTimezone();
 
   const [schedule, week, streak] = await Promise.all([
     prisma.workoutSchedule.findUnique({ where: { userId } }),
-    getCurrentWeekView(userId),
-    getWorkoutStreak(userId),
+    getCurrentWeekView(userId, timezone),
+    getWorkoutStreak(userId, timezone),
   ]);
 
   return (
@@ -37,7 +38,7 @@ export default async function EjercicioPage() {
       <ExerciseStreak streak={streak} />
 
       <div className="space-y-3">
-        {week.map(({ date, groups, completed }) => {
+        {week.map(({ cal, date, groups, completed }) => {
           const Icon = dayIcon(groups);
           const isRest = groups.length === 0;
           return (
@@ -58,14 +59,14 @@ export default async function EjercicioPage() {
                   checked={completed}
                   action={
                     completed
-                      ? unmarkWorkoutDone.bind(null, date.getFullYear(), date.getMonth() + 1, date.getDate())
-                      : markWorkoutDone.bind(null, date.getFullYear(), date.getMonth() + 1, date.getDate())
+                      ? unmarkWorkoutDone.bind(null, cal.year, cal.month, cal.day)
+                      : markWorkoutDone.bind(null, cal.year, cal.month, cal.day)
                   }
                 />
               )}
 
               <div className="min-w-0 flex-1">
-                <p className="text-sm text-foreground">{formatDateEs(date)}</p>
+                <p className="text-sm text-foreground">{formatDateEs(date, timezone)}</p>
                 <p className={cn("text-xs", completed ? "text-muted line-through" : "text-muted")}>
                   {formatMuscleGroups(groups)}
                 </p>

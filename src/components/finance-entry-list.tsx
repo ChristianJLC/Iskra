@@ -28,7 +28,13 @@ const FILTER_OPTIONS: { value: FilterValue; label: string }[] = [
   { value: "GASTO", label: "Gastos" },
 ];
 
-export function FinanceEntryList({ entries }: { entries: SerializedFinanceEntry[] }) {
+export function FinanceEntryList({
+  entries,
+  timezone,
+}: {
+  entries: SerializedFinanceEntry[];
+  timezone: string;
+}) {
   const [isOpen, setIsOpen] = useState(false);
   const [filter, setFilter] = useState<FilterValue>("TODOS");
 
@@ -76,7 +82,7 @@ export function FinanceEntryList({ entries }: { entries: SerializedFinanceEntry[
                 </span>
               </div>
               {entry.description && <p className="mt-0.5 text-xs text-muted">{entry.description}</p>}
-              <p className="mt-0.5 text-xs text-muted">{formatShortDateEs(entry.date)}</p>
+              <p className="mt-0.5 text-xs text-muted">{formatShortDateEs(entry.date, timezone)}</p>
             </div>
             <DeleteButton action={deleteFinanceEntry.bind(null, entry.id)} />
           </Card>

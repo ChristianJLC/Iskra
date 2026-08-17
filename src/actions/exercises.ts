@@ -2,8 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { verifySession } from "@/lib/dal";
+import { verifySession, getUserTimezone } from "@/lib/dal";
 import { getScheduledGroups } from "@/lib/exercise";
+import { calendarDateToUtc } from "@/lib/date";
 import { MUSCLE_GROUP_OPTIONS } from "@/lib/routine-groups";
 import type { MuscleGroup } from "@/generated/prisma/client";
 
@@ -33,10 +34,12 @@ export async function saveWorkoutSchedule(days: Record<EditableDay, MuscleGroup[
 
 export async function markWorkoutDone(year: number, month: number, day: number) {
   const { userId } = await verifySession();
+  const timezone = await getUserTimezone();
 
-  const date = new Date(year, month - 1, day);
+  const cal = { year, month, day };
+  const date = calendarDateToUtc(timezone, cal);
   const schedule = await prisma.workoutSchedule.findUnique({ where: { userId } });
-  const groups = getScheduledGroups(schedule, date);
+  const groups = getScheduledGroups(schedule, cal);
   if (groups.length === 0) return;
 
   const exists = await prisma.workoutCompletion.findUnique({
@@ -53,8 +56,9 @@ export async function markWorkoutDone(year: number, month: number, day: number) 
 
 export async function unmarkWorkoutDone(year: number, month: number, day: number) {
   const { userId } = await verifySession();
+  const timezone = await getUserTimezone();
+  const date = calendarDateToUtc(timezone, { year, month, day });
 
-  const date = new Date(year, month - 1, day);
   await prisma.workoutCompletion.deleteMany({ where: { userId, date } });
 
   revalidatePath("/ejercicio");

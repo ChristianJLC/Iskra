@@ -1,7 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
-import { getMonthBounds, daysInMonth } from "@/lib/date";
+import { getMonthBounds, daysInMonth, getZonedCalendarDate, calendarDateToUtc } from "@/lib/date";
 
 type FinanceAmountEntry = {
   type: string;
@@ -23,7 +23,12 @@ export function getMonthTotals(entries: FinanceAmountEntry[]) {
   return { ingresos, extras, gastos, balance };
 }
 
-export async function getHistorialMonths(userId: string, excludeMonth: number, excludeYear: number) {
+export async function getHistorialMonths(
+  userId: string,
+  excludeMonth: number,
+  excludeYear: number,
+  timezone: string
+) {
   const entries = await prisma.financeEntry.findMany({
     where: { userId },
     select: { date: true, type: true, amount: true },
@@ -32,8 +37,7 @@ export async function getHistorialMonths(userId: string, excludeMonth: number, e
   const byMonth = new Map<string, { month: number; year: number; entries: FinanceAmountEntry[] }>();
 
   for (const entry of entries) {
-    const month = entry.date.getMonth() + 1;
-    const year = entry.date.getFullYear();
+    const { month, year } = getZonedCalendarDate(timezone, entry.date);
     if (month === excludeMonth && year === excludeYear) continue;
 
     const key = `${year}-${month}`;
@@ -65,13 +69,10 @@ export function getBillState(
 
 const PRIORITY_WEIGHT: Record<string, number> = { ALTA: 0, MEDIA: 1, BAJA: 2 };
 
-export async function getBillsWithState(userId: string) {
-  const now = new Date();
-  const month = now.getMonth() + 1;
-  const year = now.getFullYear();
-  const today = now.getDate();
+export async function getBillsWithState(userId: string, timezone: string) {
+  const { year, month, day: today } = getZonedCalendarDate(timezone);
   const monthDayCount = daysInMonth(month, year);
-  const { start, end } = getMonthBounds(month, year);
+  const { start, end } = getMonthBounds(timezone, month, year);
 
   const [bills, payments] = await Promise.all([
     prisma.recurringBill.findMany({ where: { userId } }),
@@ -91,10 +92,8 @@ export async function getBillsWithState(userId: string) {
     .sort((a, b) => PRIORITY_WEIGHT[a.priority] - PRIORITY_WEIGHT[b.priority] || a.startDay - b.startDay);
 }
 
-export async function ensureQuincenaIngresos(userId: string) {
-  const now = new Date();
-  const month = now.getMonth() + 1;
-  const year = now.getFullYear();
+export async function ensureQuincenaIngresos(userId: string, timezone: string) {
+  const { year, month, day: currentDay } = getZonedCalendarDate(timezone);
 
   let settings = await prisma.financeSettings.findUnique({
     where: { userId_month_year: { userId, month, year } },
@@ -123,10 +122,10 @@ export async function ensureQuincenaIngresos(userId: string) {
   if (amount <= 0) return;
 
   const isMonthly = settings?.incomeFrequency === "MENSUAL";
-  const dueDays = isMonthly ? [1] : now.getDate() >= 16 ? [1, 16] : [1];
+  const dueDays = isMonthly ? [1] : currentDay >= 16 ? [1, 16] : [1];
 
   for (const day of dueDays) {
-    const date = new Date(year, month - 1, day);
+    const date = calendarDateToUtc(timezone, { year, month, day });
     const nextDay = new Date(date.getTime() + 24 * 60 * 60 * 1000);
 
     const exists = await prisma.financeEntry.findFirst({

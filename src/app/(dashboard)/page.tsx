@@ -1,7 +1,7 @@
 import { Utensils, Dumbbell, BookOpen, ListChecks, Wallet } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { verifySession, getCurrentUser } from "@/lib/dal";
-import { startOfToday, endOfToday, formatDateEs } from "@/lib/date";
+import { startOfToday, endOfToday, formatDateEs, getMonthBounds, getZonedCalendarDate } from "@/lib/date";
 import { ensureQuincenaIngresos } from "@/lib/finance";
 import { getTodayWorkout, formatMuscleGroups } from "@/lib/exercise";
 import { effectiveMinutes } from "@/lib/study";
@@ -13,19 +13,17 @@ const currency = new Intl.NumberFormat("es-PE", { style: "currency", currency: "
 export default async function ResumenPage() {
   const { userId } = await verifySession();
   const user = await getCurrentUser();
+  const timezone = user.timezone;
 
-  await ensureQuincenaIngresos(userId);
+  await ensureQuincenaIngresos(userId, timezone);
 
-  const today = { gte: startOfToday(), lt: endOfToday() };
-  const now = new Date();
-  const month = now.getMonth() + 1;
-  const year = now.getFullYear();
-  const monthStart = new Date(year, month - 1, 1);
-  const monthEnd = new Date(year, month, 1);
+  const today = { gte: startOfToday(timezone), lt: endOfToday(timezone) };
+  const { year, month } = getZonedCalendarDate(timezone);
+  const { start: monthStart, end: monthEnd } = getMonthBounds(timezone, month, year);
 
   const [meals, todayWorkout, studies, pendingTasks, financeEntries] = await Promise.all([
     prisma.mealEntry.findMany({ where: { userId, date: today } }),
-    getTodayWorkout(userId),
+    getTodayWorkout(userId, timezone),
     prisma.studyEntry.findMany({ where: { userId, date: today } }),
     prisma.task.count({ where: { userId, completed: false } }),
     prisma.financeEntry.findMany({ where: { userId, date: { gte: monthStart, lt: monthEnd } } }),
@@ -98,7 +96,7 @@ export default async function ResumenPage() {
           <h1 className="text-3xl font-bold tracking-tight text-foreground">
             {user.name.split(" ")[0]}
           </h1>
-          <p className="text-sm text-muted">{formatDateEs(new Date())}</p>
+          <p className="text-sm text-muted">{formatDateEs(new Date(), timezone)}</p>
         </div>
       </div>
 

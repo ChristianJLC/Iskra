@@ -1,15 +1,16 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { verifySession } from "@/lib/dal";
-import { formatMonthYearEs } from "@/lib/date";
+import { verifySession, getUserTimezone } from "@/lib/dal";
+import { formatMonthYearEs, getZonedCalendarDate } from "@/lib/date";
 import { getStudyHistorialMonths } from "@/lib/study";
 import { Card } from "@/components/ui/card";
 
 export default async function EstudioHistorialPage() {
   const { userId } = await verifySession();
+  const timezone = await getUserTimezone();
 
-  const now = new Date();
-  const months = await getStudyHistorialMonths(userId, now.getMonth() + 1, now.getFullYear());
+  const { year, month } = getZonedCalendarDate(timezone);
+  const months = await getStudyHistorialMonths(userId, month, year, timezone);
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">

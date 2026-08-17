@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { verifySession } from "@/lib/dal";
+import { verifySession, getUserTimezone } from "@/lib/dal";
 import { getBillsWithState, type BillState } from "@/lib/finance";
 import { deleteRecurringBill, markBillPaid, unmarkBillPaid } from "@/actions/finance";
 import { Card } from "@/components/ui/card";
@@ -39,8 +39,9 @@ const currency = new Intl.NumberFormat("es-PE", { style: "currency", currency: "
 
 export default async function PagosMensualesPage() {
   const { userId } = await verifySession();
+  const timezone = await getUserTimezone();
 
-  const bills = await getBillsWithState(userId);
+  const bills = await getBillsWithState(userId, timezone);
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">

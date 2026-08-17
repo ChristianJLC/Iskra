@@ -9,25 +9,31 @@ import {
   daysInYear,
   formatShortDateEs,
   formatMonthYearEs,
+  getZonedCalendarDate,
+  calendarDateToUtc,
+  addCalendarDays,
 } from "@/lib/date";
 import { WATER_GLASS_LITERS, WATER_TARGET_LITERS, getWaterStatus, type WaterPeriod, type WaterStats } from "@/lib/water-constants";
 
 export { WATER_GLASS_LITERS, WATER_TARGET_LITERS, WATER_TARGET_GLASSES, getWaterStatus } from "@/lib/water-constants";
 export type { WaterPeriod, WaterStatus, WaterStats } from "@/lib/water-constants";
 
-export async function getTodayGlasses(userId: string) {
+export async function getTodayGlasses(userId: string, timezone: string) {
   const entry = await prisma.waterEntry.findUnique({
-    where: { userId_date: { userId, date: startOfToday() } },
+    where: { userId_date: { userId, date: startOfToday(timezone) } },
   });
   return entry?.glasses ?? 0;
 }
 
 const WEEKDAY_LABELS = ["L", "M", "M", "J", "V", "S", "D"];
 
-async function getWeekStats(userId: string, offset: number): Promise<WaterStats> {
-  const today = startOfToday();
-  const reference = new Date(today.getFullYear(), today.getMonth(), today.getDate() + offset * 7);
-  const { start, end } = getWeekBounds(reference);
+async function getWeekStats(userId: string, timezone: string, offset: number): Promise<WaterStats> {
+  const today = startOfToday(timezone);
+  const todayCal = getZonedCalendarDate(timezone, today);
+  const referenceCal = addCalendarDays(todayCal, offset * 7);
+  const reference = calendarDateToUtc(timezone, referenceCal);
+  const { start, end } = getWeekBounds(timezone, reference);
+  const startCal = getZonedCalendarDate(timezone, start);
   const isCurrent = offset === 0;
 
   const entries = await prisma.waterEntry.findMany({
@@ -36,7 +42,8 @@ async function getWeekStats(userId: string, offset: number): Promise<WaterStats>
   const glassesByDate = new Map(entries.map((e) => [e.date.getTime(), e.glasses]));
 
   const bars = Array.from({ length: 7 }, (_, i) => {
-    const date = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+    const cal = addCalendarDays(startCal, i);
+    const date = calendarDateToUtc(timezone, cal);
     return {
       key: date.toISOString(),
       label: WEEKDAY_LABELS[i],
@@ -49,10 +56,10 @@ async function getWeekStats(userId: string, offset: number): Promise<WaterStats>
   const sum = elapsedBars.reduce((acc, b) => acc + b.liters, 0);
   const average = elapsedBars.length > 0 ? sum / elapsedBars.length : 0;
 
-  const lastDay = new Date(end.getFullYear(), end.getMonth(), end.getDate() - 1);
+  const lastDayCal = addCalendarDays(startCal, 6);
   const periodLabel = isCurrent
     ? "Esta semana"
-    : `${formatShortDateEs(start)} – ${formatShortDateEs(lastDay)}`;
+    : `${formatShortDateEs(start, timezone)} – ${formatShortDateEs(calendarDateToUtc(timezone, lastDayCal), timezone)}`;
 
   return {
     periodLabel,
@@ -64,14 +71,15 @@ async function getWeekStats(userId: string, offset: number): Promise<WaterStats>
   };
 }
 
-async function getMonthStats(userId: string, offset: number): Promise<WaterStats> {
-  const today = startOfToday();
-  const totalMonthIndex = today.getFullYear() * 12 + today.getMonth() + offset;
+async function getMonthStats(userId: string, timezone: string, offset: number): Promise<WaterStats> {
+  const today = startOfToday(timezone);
+  const todayCal = getZonedCalendarDate(timezone, today);
+  const totalMonthIndex = todayCal.year * 12 + (todayCal.month - 1) + offset;
   const year = Math.floor(totalMonthIndex / 12);
   const month = (totalMonthIndex % 12) + 1;
   const isCurrent = offset === 0;
 
-  const { start, end } = getMonthBounds(month, year);
+  const { start, end } = getMonthBounds(timezone, month, year);
   const entries = await prisma.waterEntry.findMany({
     where: { userId, date: { gte: start, lt: end } },
   });
@@ -79,7 +87,7 @@ async function getMonthStats(userId: string, offset: number): Promise<WaterStats
 
   const total = daysInMonth(month, year);
   const bars = Array.from({ length: total }, (_, i) => {
-    const date = new Date(year, month - 1, i + 1);
+    const date = calendarDateToUtc(timezone, { year, month, day: i + 1 });
     return {
       key: date.toISOString(),
       label: String(i + 1),
@@ -104,27 +112,29 @@ async function getMonthStats(userId: string, offset: number): Promise<WaterStats
 
 const MONTH_LABELS = ["E", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"];
 
-async function getYearStats(userId: string, offset: number): Promise<WaterStats> {
-  const today = startOfToday();
-  const year = today.getFullYear() + offset;
+async function getYearStats(userId: string, timezone: string, offset: number): Promise<WaterStats> {
+  const today = startOfToday(timezone);
+  const todayCal = getZonedCalendarDate(timezone, today);
+  const year = todayCal.year + offset;
   const isCurrent = offset === 0;
 
-  const { start, end } = getYearBounds(year);
+  const { start, end } = getYearBounds(timezone, year);
   const entries = await prisma.waterEntry.findMany({
     where: { userId, date: { gte: start, lt: end } },
   });
 
   const litersByMonth = new Array(12).fill(0) as number[];
   for (const entry of entries) {
-    litersByMonth[entry.date.getMonth()] += entry.glasses * WATER_GLASS_LITERS;
+    const cal = getZonedCalendarDate(timezone, entry.date);
+    litersByMonth[cal.month - 1] += entry.glasses * WATER_GLASS_LITERS;
   }
 
-  const monthsElapsed = isCurrent ? today.getMonth() + 1 : 12;
+  const monthsElapsed = isCurrent ? todayCal.month : 12;
   const bars = Array.from({ length: 12 }, (_, i) => ({
     key: `${year}-${i}`,
     label: MONTH_LABELS[i],
     liters: litersByMonth[i],
-    isFuture: isCurrent && i > today.getMonth(),
+    isFuture: isCurrent && i > todayCal.month - 1,
   }));
 
   const daysElapsed = isCurrent
@@ -143,8 +153,13 @@ async function getYearStats(userId: string, offset: number): Promise<WaterStats>
   };
 }
 
-export async function getWaterStats(userId: string, period: WaterPeriod, offset: number): Promise<WaterStats> {
-  if (period === "week") return getWeekStats(userId, offset);
-  if (period === "month") return getMonthStats(userId, offset);
-  return getYearStats(userId, offset);
+export async function getWaterStats(
+  userId: string,
+  timezone: string,
+  period: WaterPeriod,
+  offset: number
+): Promise<WaterStats> {
+  if (period === "week") return getWeekStats(userId, timezone, offset);
+  if (period === "month") return getMonthStats(userId, timezone, offset);
+  return getYearStats(userId, timezone, offset);
 }

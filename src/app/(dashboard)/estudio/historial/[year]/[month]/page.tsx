@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Check } from "lucide-react";
 import { prisma } from "@/lib/prisma";
-import { verifySession } from "@/lib/dal";
+import { verifySession, getUserTimezone } from "@/lib/dal";
 import { formatMonthYearEs, formatShortDateEs, getMonthBounds } from "@/lib/date";
 import { getMonthlyStudyCompliance, effectiveMinutes } from "@/lib/study";
 import { Card } from "@/components/ui/card";
@@ -22,11 +22,12 @@ export default async function EstudioHistorialMesPage({
   }
 
   const { userId } = await verifySession();
+  const timezone = await getUserTimezone();
 
-  const { start, end } = getMonthBounds(month, year);
+  const { start, end } = getMonthBounds(timezone, month, year);
 
   const [{ totalActual, totalTarget, rate }, entries] = await Promise.all([
-    getMonthlyStudyCompliance(userId, month, year),
+    getMonthlyStudyCompliance(userId, month, year, timezone),
     prisma.studyEntry.findMany({
       where: { userId, date: { gte: start, lt: end } },
       orderBy: { date: "asc" },
@@ -65,7 +66,7 @@ export default async function EstudioHistorialMesPage({
           <Card key={entry.id} className="flex items-center justify-between py-3">
             <div>
               <p className="text-sm text-foreground">{entry.subjectName}</p>
-              <p className="text-xs text-muted">{formatShortDateEs(entry.date)}</p>
+              <p className="text-xs text-muted">{formatShortDateEs(entry.date, timezone)}</p>
             </div>
             <span
               className={cn(

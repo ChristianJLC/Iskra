@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import { prisma } from "@/lib/prisma";
-import { verifySession } from "@/lib/dal";
+import { verifySession, getUserTimezone } from "@/lib/dal";
 import { startOfToday, endOfToday, formatDateEs } from "@/lib/date";
 import { NutritionOnboarding } from "@/components/nutrition-onboarding";
 import { NutritionSummary } from "@/components/nutrition-summary";
@@ -22,6 +22,7 @@ const MEAL_LABELS: Record<(typeof MEAL_TYPES)[number], string> = {
 
 export default async function ComidasPage() {
   const { userId } = await verifySession();
+  const timezone = await getUserTimezone();
 
   const nutritionProfile = await prisma.nutritionProfile.findUnique({ where: { userId } });
   if (!nutritionProfile?.completedAt) {
@@ -30,13 +31,13 @@ export default async function ComidasPage() {
 
   const [meals, photosUsedToday, waterGlasses, savedMealsRaw] = await Promise.all([
     prisma.mealEntry.findMany({
-      where: { userId, date: { gte: startOfToday(), lt: endOfToday() } },
+      where: { userId, date: { gte: startOfToday(timezone), lt: endOfToday(timezone) } },
       orderBy: { createdAt: "asc" },
     }),
     prisma.mealPhotoAnalysis.count({
-      where: { userId, createdAt: { gte: startOfToday(), lt: endOfToday() } },
+      where: { userId, createdAt: { gte: startOfToday(timezone), lt: endOfToday(timezone) } },
     }),
-    getTodayGlasses(userId),
+    getTodayGlasses(userId, timezone),
     prisma.savedMeal.findMany({
       where: { userId },
       orderBy: { updatedAt: "desc" },
@@ -85,7 +86,7 @@ export default async function ComidasPage() {
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-foreground">Nutrición</h1>
-          <p className="text-sm text-muted">{formatDateEs(new Date())}</p>
+          <p className="text-sm text-muted">{formatDateEs(new Date(), timezone)}</p>
         </div>
         <Link
           href="/comidas/alimentos"

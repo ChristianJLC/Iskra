@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { prisma } from "@/lib/prisma";
-import { verifySession } from "@/lib/dal";
+import { verifySession, getUserTimezone } from "@/lib/dal";
 import { formatMonthYearEs, getMonthBounds } from "@/lib/date";
 import { getMonthTotals } from "@/lib/finance";
 import { Card } from "@/components/ui/card";
@@ -26,8 +26,10 @@ export default async function HistorialMesPage({
   }
 
   const { userId } = await verifySession();
+  const timezone = await getUserTimezone();
 
-  const { start: monthStart, end: monthEnd } = getMonthBounds(month, year);
+  const { start: monthStart, end: monthEnd } = getMonthBounds(timezone, month, year);
+
   const entries = await prisma.financeEntry.findMany({
     where: { userId, date: { gte: monthStart, lt: monthEnd } },
     orderBy: { date: "desc" },
@@ -75,7 +77,7 @@ export default async function HistorialMesPage({
         <FinanceChart ingresos={ingresos} extras={extras} gastos={gastos} balance={balance} />
       </Card>
 
-      <FinanceEntryList entries={serializedEntries} />
+      <FinanceEntryList entries={serializedEntries} timezone={timezone} />
     </div>
   );
 }

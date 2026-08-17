@@ -1,6 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
-import { getMonthBounds } from "@/lib/date";
+import { getMonthBounds, getZonedCalendarDate } from "@/lib/date";
 import type { StudyEntry } from "@/generated/prisma/client";
 
 type TimerFields = Pick<StudyEntry, "accumulatedSeconds" | "runningSince">;
@@ -15,8 +15,8 @@ export function effectiveMinutes(entry: TimerFields, now = new Date()): number {
   return Math.floor(effectiveSeconds(entry, now) / 60);
 }
 
-export async function getMonthlyStudyCompliance(userId: string, month: number, year: number) {
-  const { start, end } = getMonthBounds(month, year);
+export async function getMonthlyStudyCompliance(userId: string, month: number, year: number, timezone: string) {
+  const { start, end } = getMonthBounds(timezone, month, year);
 
   const entries = await prisma.studyEntry.findMany({
     where: { userId, date: { gte: start, lt: end } },
@@ -35,7 +35,12 @@ export async function getMonthlyStudyCompliance(userId: string, month: number, y
   };
 }
 
-export async function getStudyHistorialMonths(userId: string, excludeMonth: number, excludeYear: number) {
+export async function getStudyHistorialMonths(
+  userId: string,
+  excludeMonth: number,
+  excludeYear: number,
+  timezone: string
+) {
   const entries = await prisma.studyEntry.findMany({
     where: { userId },
     select: { date: true },
@@ -43,8 +48,7 @@ export async function getStudyHistorialMonths(userId: string, excludeMonth: numb
 
   const months = new Map<string, { month: number; year: number }>();
   for (const { date } of entries) {
-    const month = date.getMonth() + 1;
-    const year = date.getFullYear();
+    const { month, year } = getZonedCalendarDate(timezone, date);
     if (month === excludeMonth && year === excludeYear) continue;
     months.set(`${year}-${month}`, { month, year });
   }
@@ -53,7 +57,7 @@ export async function getStudyHistorialMonths(userId: string, excludeMonth: numb
     Array.from(months.values()).map(async ({ month, year }) => ({
       month,
       year,
-      ...(await getMonthlyStudyCompliance(userId, month, year)),
+      ...(await getMonthlyStudyCompliance(userId, month, year, timezone)),
     }))
   );
 

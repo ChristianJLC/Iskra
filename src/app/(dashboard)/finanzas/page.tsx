@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { verifySession } from "@/lib/dal";
-import { formatMonthYearEs, getMonthBounds } from "@/lib/date";
+import { verifySession, getUserTimezone } from "@/lib/dal";
+import { formatMonthYearEs, getMonthBounds, getZonedCalendarDate } from "@/lib/date";
 import { ensureQuincenaIngresos, getMonthTotals } from "@/lib/finance";
 import { Card } from "@/components/ui/card";
 import { IncomeForm } from "@/components/income-form";
@@ -14,13 +14,12 @@ const currency = new Intl.NumberFormat("es-PE", { style: "currency", currency: "
 
 export default async function FinanzasPage() {
   const { userId } = await verifySession();
+  const timezone = await getUserTimezone();
 
-  await ensureQuincenaIngresos(userId);
+  await ensureQuincenaIngresos(userId, timezone);
 
-  const now = new Date();
-  const month = now.getMonth() + 1;
-  const year = now.getFullYear();
-  const { start: monthStart, end: monthEnd } = getMonthBounds(month, year);
+  const { year, month } = getZonedCalendarDate(timezone);
+  const { start: monthStart, end: monthEnd } = getMonthBounds(timezone, month, year);
 
   const [settings, entries] = await Promise.all([
     prisma.financeSettings.findUnique({
@@ -89,7 +88,7 @@ export default async function FinanzasPage() {
 
       <FinanceEntryForm />
 
-      <FinanceEntryList entries={serializedEntries} />
+      <FinanceEntryList entries={serializedEntries} timezone={timezone} />
     </div>
   );
 }

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { verifySession } from "@/lib/dal";
+import { verifySession, getUserTimezone } from "@/lib/dal";
 import { startOfToday, endOfToday } from "@/lib/date";
 import { MealIngredientsArraySchema, sumIngredientMacros, type MealIngredient } from "@/lib/meal-ingredients";
 import type { Prisma } from "@/generated/prisma/client";
@@ -84,9 +84,10 @@ export async function deleteMeal(id: string) {
 
 export async function completeAllMeals() {
   const { userId } = await verifySession();
+  const timezone = await getUserTimezone();
 
   await prisma.mealEntry.updateMany({
-    where: { userId, date: { gte: startOfToday(), lt: endOfToday() }, completed: false },
+    where: { userId, date: { gte: startOfToday(timezone), lt: endOfToday(timezone) }, completed: false },
     data: { completed: true },
   });
 

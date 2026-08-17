@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { verifySession } from "@/lib/dal";
+import { verifySession, getUserTimezone } from "@/lib/dal";
 import { formatShortDateEs } from "@/lib/date";
 import { toggleTask, deleteTask } from "@/actions/tasks";
 import { Card } from "@/components/ui/card";
@@ -22,6 +22,7 @@ const PRIORITY_LABELS: Record<string, string> = {
 
 export default async function OrganizacionPage() {
   const { userId } = await verifySession();
+  const timezone = await getUserTimezone();
 
   const tasks = await prisma.task.findMany({
     where: { userId },
@@ -67,7 +68,7 @@ export default async function OrganizacionPage() {
                 <p className="mt-0.5 text-xs text-muted">{task.description}</p>
               )}
               {task.dueDate && (
-                <p className="mt-0.5 text-xs text-muted">Vence: {formatShortDateEs(task.dueDate)}</p>
+                <p className="mt-0.5 text-xs text-muted">Vence: {formatShortDateEs(task.dueDate, timezone)}</p>
               )}
             </div>
             <DeleteButton action={deleteTask.bind(null, task.id)} />

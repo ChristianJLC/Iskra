@@ -24,6 +24,14 @@ export async function setAvatar(avatarId: string | null) {
   revalidatePath("/", "layout");
 }
 
+export async function markAnnouncementSeen(announcementId: string) {
+  const { userId } = await verifySession();
+
+  if (typeof announcementId !== "string" || !announcementId) return;
+
+  await prisma.user.update({ where: { id: userId }, data: { lastSeenAnnouncement: announcementId } });
+}
+
 export async function syncTimezone(timezone: string) {
   const { userId } = await verifySession();
 

@@ -13,13 +13,13 @@ const currency = new Intl.NumberFormat("es-PE", { style: "currency", currency: "
 type IncomeFrequency = "QUINCENAL" | "MENSUAL";
 
 const FREQUENCY_OPTIONS: { value: IncomeFrequency; label: string }[] = [
-  { value: "QUINCENAL", label: "Quincenal" },
+  { value: "QUINCENAL", label: "Por quincenas" },
   { value: "MENSUAL", label: "Mensual" },
 ];
 
-const FREQUENCY_LABEL: Record<IncomeFrequency, string> = {
-  QUINCENAL: "Ingreso fijo quincenal",
-  MENSUAL: "Ingreso fijo mensual",
+const FREQUENCY_HELP: Record<IncomeFrequency, string> = {
+  QUINCENAL: "Se reparte entre las dos quincenas según los días del mes.",
+  MENSUAL: "Se registra completo el día 1 de cada mes.",
 };
 
 export function IncomeForm({
@@ -36,12 +36,13 @@ export function IncomeForm({
   const [isEditing, setIsEditing] = useState(!biweeklyIncome);
   const [isPending, startTransition] = useTransition();
   const [frequency, setFrequency] = useState<IncomeFrequency>(incomeFrequency);
+  const [amountValue, setAmountValue] = useState(biweeklyIncome ? String(biweeklyIncome) : "");
 
   if (!isEditing) {
     return (
       <Card className="flex items-center justify-between">
         <div>
-          <p className="text-xs text-muted">{FREQUENCY_LABEL[incomeFrequency]}</p>
+          <p className="text-xs text-muted">Sueldo mensual guardado</p>
           <p className="text-sm font-medium text-foreground">{currency.format(biweeklyIncome)}</p>
         </div>
         <Button type="button" variant="secondary" onClick={() => setIsEditing(true)}>
@@ -66,37 +67,54 @@ export function IncomeForm({
         <input type="hidden" name="year" value={year} />
         <input type="hidden" name="incomeFrequency" value={frequency} />
         <div>
-          <Label>Frecuencia</Label>
-          <SegmentedControl
-            layoutId="income-frequency-indicator"
-            options={FREQUENCY_OPTIONS}
-            value={frequency}
-            onChange={setFrequency}
-          />
-        </div>
-        <div>
-          <Label htmlFor="biweeklyIncome">{FREQUENCY_LABEL[frequency]}</Label>
+          <Label htmlFor="biweeklyIncome">Sueldo mensual</Label>
           <Input
             id="biweeklyIncome"
             name="biweeklyIncome"
             type="number"
             min={0}
             step="0.01"
-            defaultValue={biweeklyIncome || undefined}
+            value={amountValue}
+            onChange={(e) => setAmountValue(e.target.value)}
             placeholder="0.00"
             required
           />
         </div>
-        <div className="flex gap-2">
+        <div>
+          <Label>Visualizar ingreso</Label>
+          <SegmentedControl
+            layoutId="income-frequency-indicator"
+            options={FREQUENCY_OPTIONS}
+            value={frequency}
+            onChange={setFrequency}
+          />
+          <p className="mt-1 text-xs text-muted">{FREQUENCY_HELP[frequency]}</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
           <SubmitButton disabled={isPending} variant="secondary">
             Guardar ingreso
           </SubmitButton>
           {Boolean(biweeklyIncome) && (
-            <Button type="button" variant="ghost" disabled={isPending} onClick={() => setIsEditing(false)}>
-              Cancelar
-            </Button>
+            <>
+              <Button type="button" variant="ghost" disabled={isPending} onClick={() => setIsEditing(false)}>
+                Cancelar
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                className="text-danger"
+                disabled={isPending}
+                onClick={() => setAmountValue("0")}
+              >
+                Quitar sueldo
+              </Button>
+            </>
           )}
         </div>
+        <p className="text-xs text-muted">
+          ¿Sin ingreso este mes (despido, pausa laboral, etc.)? &quot;Quitar sueldo&quot; pone el monto en 0 — luego dale a
+          &quot;Guardar ingreso&quot; para confirmar.
+        </p>
       </form>
     </Card>
   );

@@ -118,11 +118,12 @@ export async function ensureQuincenaIngresos(userId: string, timezone: string) {
     }
   }
 
-  const amount = settings ? Number(settings.biweeklyIncome) : 0;
-  if (amount <= 0) return;
+  const monthlyIncome = settings ? Number(settings.biweeklyIncome) : 0;
+  if (monthlyIncome <= 0) return;
 
   const isMonthly = settings?.incomeFrequency === "MENSUAL";
   const dueDays = isMonthly ? [1] : currentDay >= 16 ? [1, 16] : [1];
+  const totalDays = daysInMonth(month, year);
 
   for (const day of dueDays) {
     const date = calendarDateToUtc(timezone, { year, month, day });
@@ -133,6 +134,11 @@ export async function ensureQuincenaIngresos(userId: string, timezone: string) {
     });
 
     if (!exists) {
+      const daysInPeriod = day === 1 ? 15 : totalDays - 15;
+      const amount = isMonthly
+        ? monthlyIncome
+        : Math.round((monthlyIncome / totalDays) * daysInPeriod * 100) / 100;
+
       await prisma.financeEntry.create({
         data: {
           userId,

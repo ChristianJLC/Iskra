@@ -5,7 +5,9 @@ import { SidebarNav, BottomNav } from "@/components/nav-links";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { LogoutButton } from "@/components/logout-button";
 import { TimezoneSync } from "@/components/timezone-sync";
+import { AnnouncementModal } from "@/components/announcement-modal";
 import { resolveAccentStyle } from "@/lib/accent-color";
+import { CURRENT_ANNOUNCEMENT_ID } from "@/lib/announcement";
 
 export default async function DashboardLayout({
   children,
@@ -18,6 +20,10 @@ export default async function DashboardLayout({
   return (
     <div id="dashboard-shell" className="min-h-screen md:flex" style={accentStyle}>
       <TimezoneSync currentTimezone={user.timezone} />
+      <AnnouncementModal
+        announcementId={CURRENT_ANNOUNCEMENT_ID}
+        alreadySeen={user.lastSeenAnnouncement === CURRENT_ANNOUNCEMENT_ID}
+      />
       <aside className="hidden md:flex md:w-64 md:flex-col md:border-r md:border-border md:bg-surface-1 md:px-4 md:py-6">
         <div className="mb-6 px-2">
           <p className="text-lg font-bold tracking-tight text-foreground">Iskra</p>

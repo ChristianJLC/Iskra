@@ -8,7 +8,7 @@ import { markWorkoutDone, unmarkWorkoutDone } from "@/actions/exercises";
 import { Card } from "@/components/ui/card";
 import { ToggleCheckbox } from "@/components/toggle-checkbox";
 import { WorkoutScheduleForm } from "@/components/workout-schedule-form";
-import { ExerciseStreak } from "@/components/exercise-streak";
+import { StreakCard } from "@/components/streak-card";
 import { cn } from "@/lib/cn";
 
 export default async function EjercicioPage() {
@@ -35,7 +35,7 @@ export default async function EjercicioPage() {
 
       <WorkoutScheduleForm schedule={schedule} />
 
-      <ExerciseStreak streak={streak} />
+      <StreakCard streak={streak} />
 
       <div className="space-y-3">
         {week.map(({ cal, date, groups, completed }) => {

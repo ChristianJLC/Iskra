@@ -30,6 +30,7 @@ export const getCurrentUser = cache(async () => {
       accentColor2: true,
       avatarId: true,
       timezone: true,
+      lastSeenAnnouncement: true,
     },
   });
 

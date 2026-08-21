@@ -10,6 +10,8 @@ import { WaterCard } from "@/components/water-card";
 import { DAILY_PHOTO_LIMIT } from "@/lib/meal-photo";
 import { getTodayGlasses } from "@/lib/water";
 import { parseStoredIngredients } from "@/lib/meal-ingredients";
+import { getNutritionStreak } from "@/lib/nutrition";
+import { StreakCard } from "@/components/streak-card";
 
 const MEAL_TYPES = ["DESAYUNO", "ALMUERZO", "CENA", "SNACK"] as const;
 
@@ -29,7 +31,7 @@ export default async function ComidasPage() {
     return <NutritionOnboarding />;
   }
 
-  const [meals, photosUsedToday, waterGlasses, savedMealsRaw] = await Promise.all([
+  const [meals, photosUsedToday, waterGlasses, savedMealsRaw, streak] = await Promise.all([
     prisma.mealEntry.findMany({
       where: { userId, date: { gte: startOfToday(timezone), lt: endOfToday(timezone) } },
       orderBy: { createdAt: "asc" },
@@ -42,6 +44,7 @@ export default async function ComidasPage() {
       where: { userId },
       orderBy: { updatedAt: "desc" },
     }),
+    getNutritionStreak(userId, timezone),
   ]);
 
   const savedMeals = savedMealsRaw.map((meal) => ({
@@ -103,6 +106,8 @@ export default async function ComidasPage() {
         hasMeals={meals.length > 0}
         allCompleted={meals.length > 0 && meals.every((m) => m.completed)}
       />
+
+      <StreakCard streak={streak} emptyLabel="Empieza tu racha nutricional hoy" />
 
       <div className="space-y-4">
         {MEAL_TYPES.map((type) => (

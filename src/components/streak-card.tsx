@@ -47,7 +47,7 @@ function FlameEmbers() {
   );
 }
 
-export function ExerciseStreak({ streak }: { streak: number }) {
+export function StreakCard({ streak, emptyLabel = "Empieza tu racha hoy" }: { streak: number; emptyLabel?: string }) {
   const percent = Math.min(100, (streak / STREAK_GOAL_DAYS) * 100);
   const isActive = streak > 0;
 
@@ -67,7 +67,7 @@ export function ExerciseStreak({ streak }: { streak: number }) {
 
       <div className="min-w-0 flex-1 space-y-1.5">
         <p className="text-sm font-semibold text-foreground">
-          {isActive ? `${streak} día${streak === 1 ? "" : "s"} seguidos` : "Empieza tu racha hoy"}
+          {isActive ? `${streak} día${streak === 1 ? "" : "s"} seguidos` : emptyLabel}
         </p>
         <div className="h-2 overflow-hidden rounded-full bg-surface-2">
           <div

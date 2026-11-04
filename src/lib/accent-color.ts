@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react";
 
-export const DEFAULT_ACCENT = "#2563eb";
-export const DEFAULT_ACCENT_2 = "#9333ea";
+export const DEFAULT_ACCENT = "#c2410c";
+export const DEFAULT_ACCENT_2 = "#c2410c";
 
 export const HEX_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
 

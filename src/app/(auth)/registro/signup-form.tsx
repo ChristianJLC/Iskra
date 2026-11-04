@@ -5,6 +5,7 @@ import { User, Mail, Lock } from "lucide-react";
 import { signup } from "@/actions/auth";
 import { Input, PasswordInput, Label, FieldError } from "@/components/ui/input";
 import { SubmitButton } from "@/components/submit-button";
+import { authInputClass } from "../input-styles";
 
 export function SignupForm() {
   const [state, action] = useActionState(signup, undefined);
@@ -18,6 +19,7 @@ export function SignupForm() {
           name="name"
           placeholder="Tu nombre"
           icon={<User className="size-4" />}
+          className={authInputClass}
           required
         />
         <FieldError messages={state?.errors?.name} />
@@ -31,6 +33,7 @@ export function SignupForm() {
           type="email"
           placeholder="tu@correo.com"
           icon={<Mail className="size-4" />}
+          className={authInputClass}
           required
         />
         <FieldError messages={state?.errors?.email} />
@@ -42,6 +45,7 @@ export function SignupForm() {
           id="password"
           name="password"
           icon={<Lock className="size-4" />}
+          className={authInputClass}
           required
         />
         <FieldError messages={state?.errors?.password} />
@@ -50,7 +54,7 @@ export function SignupForm() {
 
       {state?.message && <p className="text-sm text-danger">{state.message}</p>}
 
-      <SubmitButton className="w-full" variant="gradient">
+      <SubmitButton className="h-12 w-full" variant="solid" pendingLabel="Creando cuenta…" whileHover={{ y: -2 }}>
         Crear cuenta
       </SubmitButton>
     </form>

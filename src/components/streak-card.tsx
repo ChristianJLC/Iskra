@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { Flame } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { ProgressBar } from "@/components/ui/progress";
 import { cn } from "@/lib/cn";
 
 const STREAK_GOAL_DAYS = 30;
@@ -26,7 +27,7 @@ function FlameEmbers() {
       {EMBERS.map((ember, i) => (
         <motion.span
           key={i}
-          className="absolute bottom-2 rounded-full bg-gradient-to-t from-accent-2 to-accent"
+          className="absolute bottom-2 rounded-full bg-accent motion-reduce:hidden"
           style={{
             left: ember.left,
             width: ember.size,
@@ -52,12 +53,12 @@ export function StreakCard({ streak, emptyLabel = "Empieza tu racha hoy" }: { st
   const isActive = streak > 0;
 
   return (
-    <Card className="flex items-center gap-4">
+    <Card className="flex items-center gap-4 rounded-3xl">
       <div
         className={cn(
           "relative flex size-11 shrink-0 items-center justify-center overflow-visible rounded-2xl",
           isActive
-            ? "bg-gradient-to-br from-accent to-accent-2 text-white shadow-glow animate-pulse-glow"
+            ? "bg-accent text-accent-foreground shadow-glow motion-safe:animate-pulse-glow"
             : "bg-surface-2 text-muted"
         )}
       >
@@ -66,15 +67,15 @@ export function StreakCard({ streak, emptyLabel = "Empieza tu racha hoy" }: { st
       </div>
 
       <div className="min-w-0 flex-1 space-y-1.5">
-        <p className="text-sm font-semibold text-foreground">
-          {isActive ? `${streak} día${streak === 1 ? "" : "s"} seguidos` : emptyLabel}
-        </p>
-        <div className="h-2 overflow-hidden rounded-full bg-surface-2">
-          <div
-            className="h-full rounded-full bg-gradient-to-r from-accent to-accent-2 transition-[width] duration-700 ease-out"
-            style={{ width: `${percent}%` }}
-          />
+        <div className="flex items-baseline justify-between gap-3">
+          <p className="text-sm font-semibold text-foreground">
+            {isActive ? (streak === 1 ? "1 día seguido" : `${streak} días seguidos`) : emptyLabel}
+          </p>
+          <p className="shrink-0 text-xs text-muted tabular-nums">
+            {streak}/{STREAK_GOAL_DAYS}
+          </p>
         </div>
+        <ProgressBar percent={percent} />
       </div>
     </Card>
   );

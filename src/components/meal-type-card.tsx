@@ -2,15 +2,23 @@
 
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Flame, Plus } from "lucide-react";
+import { Apple, Check, Coffee, Moon, Plus, Sun, X, type LucideIcon } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { DeleteButton } from "@/components/delete-button";
 import { AddMealForm } from "@/components/add-meal-form";
 import { deleteMeal } from "@/actions/meals";
 import { parseStoredIngredients, PORTION_LABELS } from "@/lib/meal-ingredients";
+import { cn } from "@/lib/cn";
 import type { SavedMealSummary } from "@/components/saved-meal-picker";
 
 type MealType = "DESAYUNO" | "ALMUERZO" | "CENA" | "SNACK";
+
+const MEAL_ICONS: Record<MealType, LucideIcon> = {
+  DESAYUNO: Coffee,
+  ALMUERZO: Sun,
+  CENA: Moon,
+  SNACK: Apple,
+};
 
 type MealEntry = {
   id: string;
@@ -38,6 +46,8 @@ export function MealTypeCard({
   savedMeals: SavedMealSummary[];
 }) {
   const [showForm, setShowForm] = useState(false);
+  const Icon = MEAL_ICONS[type];
+  const hasMeals = meals.length > 0;
 
   const totals = meals.reduce(
     (acc, meal) => ({
@@ -50,36 +60,56 @@ export function MealTypeCard({
   );
 
   return (
-    <Card className="space-y-4">
-      <div className="flex items-start justify-between">
-        <div>
-          <h2 className="text-base font-semibold text-foreground">{label}</h2>
-          <p className="mt-1 flex items-center gap-1 text-xs text-muted">
-            <Flame className="size-3.5 text-accent" />
-            {Math.round(totals.calories)} kcal • {Math.round(totals.proteinG)} P |{" "}
-            {Math.round(totals.carbsG)} C | {Math.round(totals.fatG)} G
-          </p>
+    <Card className="space-y-3 rounded-3xl p-4 sm:p-5">
+      <div className="flex items-center gap-3">
+        <span
+          className={cn(
+            "flex size-11 shrink-0 items-center justify-center rounded-2xl transition-colors",
+            hasMeals ? "bg-accent/15 text-accent" : "bg-surface-2 text-muted"
+          )}
+        >
+          <Icon className="size-5" />
+        </span>
+
+        <div className="min-w-0 flex-1">
+          <h2 className="text-base font-semibold tracking-tight text-foreground">{label}</h2>
+          {hasMeals ? (
+            <p className="truncate text-xs text-muted tabular-nums">
+              <span className="font-medium text-foreground">{Math.round(totals.calories)} kcal</span>
+              {" · "}P {Math.round(totals.proteinG)} · C {Math.round(totals.carbsG)} · G {Math.round(totals.fatG)}
+            </p>
+          ) : (
+            <p className="text-xs text-muted">Sin registrar</p>
+          )}
         </div>
+
+        <button
+          type="button"
+          onClick={() => setShowForm((open) => !open)}
+          aria-expanded={showForm}
+          aria-label={showForm ? `Cerrar formulario de ${label}` : `Agregar comida a ${label}`}
+          className={cn(
+            "flex h-10 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-sm font-medium transition-colors",
+            showForm
+              ? "text-muted hover:bg-surface-hover hover:text-foreground"
+              : "bg-surface-2 text-foreground hover:bg-surface-hover"
+          )}
+        >
+          {showForm ? <X className="size-4" /> : <Plus className="size-4" />}
+          {showForm ? "Cerrar" : "Agregar"}
+        </button>
       </div>
 
-      {meals.length > 0 && (
-        <div className="space-y-2">
+      {hasMeals && (
+        <ul className="divide-y divide-border/70">
           {meals.map((meal) => {
             const ingredients = parseStoredIngredients(meal.ingredients);
             return (
-              <div
-                key={meal.id}
-                className="flex items-start gap-3 rounded-xl bg-surface-2 px-3 py-2.5"
-              >
+              <li key={meal.id} className="flex items-start gap-3 py-2.5 first:pt-1 last:pb-0">
                 <div className="min-w-0 flex-1">
-                  <p
-                    className={
-                      meal.completed
-                        ? "text-sm text-muted line-through"
-                        : "text-sm text-foreground"
-                    }
-                  >
-                    {meal.description}
+                  <p className="flex items-center gap-1.5 text-sm font-medium text-foreground">
+                    {meal.completed && <Check className="size-3.5 shrink-0 text-accent" strokeWidth={3} />}
+                    <span className="truncate">{meal.description}</span>
                   </p>
                   {ingredients.length > 0 && (
                     <p className="mt-0.5 truncate text-xs text-muted">
@@ -89,54 +119,35 @@ export function MealTypeCard({
                     </p>
                   )}
                   {meal.notes && <p className="mt-0.5 text-xs text-muted">{meal.notes}</p>}
-                  {meal.calories != null && (
-                    <p className="mt-0.5 text-xs text-muted">{meal.calories} kcal</p>
-                  )}
                 </div>
+                {meal.calories != null && (
+                  <p className="shrink-0 pt-0.5 text-xs font-medium text-muted tabular-nums">{meal.calories} kcal</p>
+                )}
                 <DeleteButton action={deleteMeal.bind(null, meal.id)} />
-              </div>
+              </li>
             );
           })}
-        </div>
+        </ul>
       )}
 
-      <AnimatePresence initial={false} mode="wait">
-        {showForm ? (
+      <AnimatePresence initial={false}>
+        {showForm && (
           <motion.div
-            key="form"
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
             className="overflow-hidden"
           >
-            <div className="rounded-xl bg-surface-2 p-4">
+            <div className="rounded-2xl bg-surface-2 p-3 sm:p-4">
               <AddMealForm
                 type={type}
                 remainingPhotos={remainingPhotos}
                 savedMeals={savedMeals}
                 onDone={() => setShowForm(false)}
               />
-              <button
-                type="button"
-                onClick={() => setShowForm(false)}
-                className="mt-3 text-xs text-muted hover:text-foreground"
-              >
-                Cancelar
-              </button>
             </div>
           </motion.div>
-        ) : (
-          <motion.button
-            key="trigger"
-            type="button"
-            onClick={() => setShowForm(true)}
-            aria-label={`Agregar comida a ${label}`}
-            whileTap={{ scale: 0.97 }}
-            className="flex w-full items-center justify-center gap-2 rounded-full bg-surface-2 py-3 text-sm font-medium text-muted transition-colors hover:text-accent"
-          >
-            <Plus className="size-4" />
-          </motion.button>
         )}
       </AnimatePresence>
     </Card>

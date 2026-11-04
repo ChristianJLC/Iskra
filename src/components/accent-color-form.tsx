@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { saveAccentColors, resetAccentColors } from "@/actions/appearance";
 import { DEFAULT_ACCENT, DEFAULT_ACCENT_2, getContrastForeground } from "@/lib/accent-color";
 import { Card } from "@/components/ui/card";
@@ -19,17 +19,20 @@ export function AccentColorForm({
   const [isSaving, startSaving] = useTransition();
   const [isResetting, startResetting] = useTransition();
 
-  useEffect(() => {
+  function previewColors(nextAccent: string, nextAccent2: string) {
+    setAccent(nextAccent);
+    setAccent2(nextAccent2);
+
     const shell = document.getElementById("dashboard-shell");
-    shell?.style.setProperty("--accent", accent);
-    shell?.style.setProperty("--accent-2", accent2);
-    shell?.style.setProperty("--accent-foreground", getContrastForeground(accent));
+    shell?.style.setProperty("--accent", nextAccent);
+    shell?.style.setProperty("--accent-2", nextAccent2);
+    shell?.style.setProperty("--accent-foreground", getContrastForeground(nextAccent));
     shell?.style.setProperty(
       "--accent-glow",
       "color-mix(in srgb, var(--accent) var(--accent-glow-ratio), transparent)"
     );
     shell?.style.setProperty("--shadow-glow", "0 0 32px 0 var(--accent-glow)");
-  }, [accent, accent2]);
+  }
 
   function handleReset() {
     startResetting(async () => {
@@ -55,7 +58,7 @@ export function AccentColorForm({
             id="accent"
             type="color"
             value={accent}
-            onChange={(e) => setAccent(e.target.value)}
+            onChange={(e) => previewColors(e.target.value, accent2)}
             className="h-11 w-full cursor-pointer rounded-xl border border-border bg-surface p-1"
           />
         </div>
@@ -65,7 +68,7 @@ export function AccentColorForm({
             id="accent2"
             type="color"
             value={accent2}
-            onChange={(e) => setAccent2(e.target.value)}
+            onChange={(e) => previewColors(accent, e.target.value)}
             className="h-11 w-full cursor-pointer rounded-xl border border-border bg-surface p-1"
           />
         </div>

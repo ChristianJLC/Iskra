@@ -1,94 +1,71 @@
 import Link from "next/link";
+import { ChevronRight } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { verifySession, getUserTimezone } from "@/lib/dal";
 import { formatMonthYearEs, getMonthBounds, getZonedCalendarDate } from "@/lib/date";
-import { ensureQuincenaIngresos, getMonthTotals } from "@/lib/finance";
-import { Card } from "@/components/ui/card";
-import { IncomeForm } from "@/components/income-form";
-import { FinanceEntryForm } from "@/components/finance-entry-form";
-import { FinanceChart } from "@/components/finance-chart";
+import { getBillsWithState } from "@/lib/finance";
+import { buildFinanceView } from "@/lib/finance-summary";
+import { FinanceDashboard } from "@/components/finance-dashboard";
 import { FinanceEntryList } from "@/components/finance-entry-list";
-import { cn } from "@/lib/cn";
 
-const currency = new Intl.NumberFormat("es-PE", { style: "currency", currency: "PEN" });
+const LINK_CLASS =
+  "flex h-10 items-center gap-1 rounded-full bg-surface-2 pr-2.5 pl-3.5 text-sm font-medium text-foreground transition-colors hover:bg-surface-hover";
 
 export default async function FinanzasPage() {
   const { userId } = await verifySession();
   const timezone = await getUserTimezone();
 
-  await ensureQuincenaIngresos(userId, timezone);
-
-  const { year, month } = getZonedCalendarDate(timezone);
+  const today = getZonedCalendarDate(timezone);
+  const { year, month, day } = today;
   const { start: monthStart, end: monthEnd } = getMonthBounds(timezone, month, year);
 
-  const [settings, entries] = await Promise.all([
-    prisma.financeSettings.findUnique({
-      where: { userId_month_year: { userId, month, year } },
-    }),
+  const [entries, bills] = await Promise.all([
     prisma.financeEntry.findMany({
       where: { userId, date: { gte: monthStart, lt: monthEnd } },
-      orderBy: { date: "desc" },
+      orderBy: [{ date: "desc" }, { createdAt: "desc" }],
     }),
+    getBillsWithState(userId, timezone),
   ]);
 
-  const biweeklyIncome = settings ? Number(settings.biweeklyIncome) : 0;
-  const incomeFrequency = settings?.incomeFrequency ?? "QUINCENAL";
-  const { ingresos, extras, gastos, balance } = getMonthTotals(entries);
   const serializedEntries = entries.map((entry) => ({ ...entry, amount: Number(entry.amount) }));
+  const monthLabel = formatMonthYearEs(month, year);
+  const todayIso = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+
+  const view = buildFinanceView({
+    today,
+    monthLabel,
+    timezone,
+    entries: serializedEntries,
+    bills: bills.map((bill) => ({
+      id: bill.id,
+      title: bill.title,
+      amount: Number(bill.amount),
+      state: bill.state,
+      startDay: bill.startDay,
+      endDay: bill.endDay,
+      installmentLabel: bill.installmentLabel,
+      paidOn: bill.paidOn,
+    })),
+  });
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
-      <div className="flex items-start justify-between gap-3">
+    <div className="mx-auto max-w-6xl space-y-6">
+      <div className="reveal flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-foreground">Finanzas</h1>
-          <p className="text-sm text-muted">{formatMonthYearEs(month, year)}</p>
+          <p className="text-sm text-muted">{monthLabel}</p>
         </div>
-        <div className="flex flex-col items-end gap-1 text-sm font-medium">
-          <Link href="/finanzas/pagos" className="text-accent hover:underline">
-            Pagos mensuales
-          </Link>
-          <Link href="/finanzas/historial" className="text-accent hover:underline">
-            Ver historial
-          </Link>
-        </div>
+        <Link href="/finanzas/historial" className={LINK_CLASS}>
+          Historial
+          <ChevronRight className="size-4" />
+        </Link>
       </div>
 
-      <Card className="space-y-4">
-        <div className="grid grid-cols-3 gap-3 text-center">
-          <div>
-            <p className="text-xs text-muted">Ingreso</p>
-            <p className="text-sm font-semibold text-foreground">{currency.format(ingresos)}</p>
-          </div>
-          <div>
-            <p className="text-xs text-muted">Extra</p>
-            <p className="text-sm font-semibold text-foreground">{currency.format(extras)}</p>
-          </div>
-          <div>
-            <p className="text-xs text-muted">Gasto</p>
-            <p className="text-sm font-semibold text-foreground">{currency.format(gastos)}</p>
-          </div>
-        </div>
-
-        <div className="text-center">
-          <p className="text-xs text-muted">Balance</p>
-          <p
-            className={cn(
-              "text-sm font-semibold",
-              balance >= 0 ? "text-accent" : "text-danger"
-            )}
-          >
-            {currency.format(balance)}
-          </p>
-        </div>
-
-        <FinanceChart ingresos={ingresos} extras={extras} gastos={gastos} balance={balance} />
-      </Card>
-
-      <IncomeForm month={month} year={year} biweeklyIncome={biweeklyIncome} incomeFrequency={incomeFrequency} />
-
-      <FinanceEntryForm />
-
-      <FinanceEntryList entries={serializedEntries} timezone={timezone} />
+      <FinanceDashboard
+        view={view}
+        today={todayIso}
+        movements={<FinanceEntryList entries={serializedEntries} timezone={timezone} />}
+      />
     </div>
   );
 }

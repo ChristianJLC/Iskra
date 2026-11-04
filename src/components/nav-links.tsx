@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { motion } from "framer-motion";
-import { Home, Utensils, Dumbbell, BookOpen, ListChecks, Wallet } from "lucide-react";
+import { motion, MotionConfig } from "framer-motion";
+import { Home, Utensils, Dumbbell, BookOpen, ListChecks, Wallet, Settings, type LucideIcon } from "lucide-react";
+import { SidebarTooltip } from "@/components/ui/sidebar-tooltip";
 import { cn } from "@/lib/cn";
 
 const links = [
@@ -17,35 +18,53 @@ const links = [
 
 const springTransition = { type: "spring" as const, stiffness: 400, damping: 32 };
 
-export function SidebarNav() {
+function isActivePath(pathname: string, href: string) {
+  return href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
+}
+
+function SidebarLink({ href, label, icon: Icon }: { href: string; label: string; icon: LucideIcon }) {
   const pathname = usePathname();
+  const active = isActivePath(pathname, href);
 
   return (
-    <nav className="flex flex-col gap-1">
-      {links.map(({ href, label, icon: Icon }) => {
-        const active = pathname === href;
-        return (
-          <Link
-            key={href}
-            href={href}
-            className={cn(
-              "relative flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors",
-              active ? "text-accent-foreground" : "text-muted hover:bg-surface-hover hover:text-foreground"
-            )}
-          >
-            {active && (
-              <motion.div
-                layoutId="nav-active-sidebar"
-                className="absolute inset-0 rounded-xl bg-gradient-to-br from-accent to-accent-2 shadow-glow"
-                transition={springTransition}
-              />
-            )}
-            <Icon className="relative size-4" />
-            <span className="relative">{label}</span>
-          </Link>
-        );
-      })}
-    </nav>
+    <Link
+      href={href}
+      aria-current={active ? "page" : undefined}
+      className={cn(
+        "group relative flex size-11 items-center justify-center rounded-full outline-offset-2 transition-colors focus-visible:outline-2 focus-visible:outline-accent",
+        active ? "text-background" : "text-muted hover:bg-surface-hover hover:text-foreground"
+      )}
+    >
+      {active && (
+        <motion.div
+          layoutId="nav-active-sidebar"
+          className="absolute inset-0 rounded-full bg-foreground shadow-soft"
+          transition={springTransition}
+        />
+      )}
+      <Icon className="relative size-5" />
+      <SidebarTooltip>{label}</SidebarTooltip>
+    </Link>
+  );
+}
+
+export function SidebarNav() {
+  return (
+    <MotionConfig reducedMotion="user">
+      <nav aria-label="Principal" className="flex flex-col items-center gap-1.5">
+        {links.map(({ href, label, icon }) => (
+          <SidebarLink key={href} href={href} label={label} icon={icon} />
+        ))}
+      </nav>
+    </MotionConfig>
+  );
+}
+
+export function SidebarSettingsLink() {
+  return (
+    <MotionConfig reducedMotion="user">
+      <SidebarLink href="/ajustes" label="Configuración" icon={Settings} />
+    </MotionConfig>
   );
 }
 
@@ -55,7 +74,7 @@ export function BottomNav() {
   return (
     <nav className="flex items-center justify-around px-1 py-2">
       {links.map(({ href, label, shortLabel, icon: Icon }) => {
-        const active = pathname === href;
+        const active = isActivePath(pathname, href);
         return (
           <Link
             key={href}

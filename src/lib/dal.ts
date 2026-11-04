@@ -41,13 +41,16 @@ export const getCurrentUser = cache(async () => {
   return user;
 });
 
-export const getUserTimezone = cache(async () => {
-  const session = await verifySession();
-
+export async function getTimezoneForUser(userId: string) {
   const user = await prisma.user.findUnique({
-    where: { id: session.userId },
+    where: { id: userId },
     select: { timezone: true },
   });
 
   return user?.timezone ?? "America/Lima";
+}
+
+export const getUserTimezone = cache(async () => {
+  const session = await verifySession();
+  return getTimezoneForUser(session.userId);
 });

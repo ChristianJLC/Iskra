@@ -34,12 +34,17 @@ export async function decrypt(session: string | undefined = "") {
   }
 }
 
-export async function createSession(userId: string) {
+export async function createToken(userId: string) {
   const expiresAt = new Date(Date.now() + SESSION_DURATION_MS);
-  const session = await encrypt({ userId, expiresAt: expiresAt.toISOString() });
+  const token = await encrypt({ userId, expiresAt: expiresAt.toISOString() });
+  return { token, expiresAt };
+}
+
+export async function createSession(userId: string) {
+  const { token, expiresAt } = await createToken(userId);
   const cookieStore = await cookies();
 
-  cookieStore.set("session", session, {
+  cookieStore.set("session", token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     expires: expiresAt,

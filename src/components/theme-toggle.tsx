@@ -4,10 +4,11 @@ import { useSyncExternalStore } from "react";
 import { useTheme } from "@/components/theme-provider";
 import { AnimatePresence, motion } from "framer-motion";
 import { Moon, Sun } from "lucide-react";
+import { cn } from "@/lib/cn";
 
 const emptySubscribe = () => () => {};
 
-export function ThemeToggle() {
+export function ThemeToggle({ className }: { className?: string }) {
   const { resolvedTheme, setTheme } = useTheme();
   const mounted = useSyncExternalStore(
     emptySubscribe,
@@ -16,7 +17,7 @@ export function ThemeToggle() {
   );
 
   if (!mounted) {
-    return <div className="size-9" />;
+    return <div className={cn("size-9", className)} />;
   }
 
   const isDark = resolvedTheme === "dark";
@@ -26,7 +27,10 @@ export function ThemeToggle() {
       type="button"
       onClick={() => setTheme(isDark ? "light" : "dark")}
       aria-label={isDark ? "Cambiar a tema claro" : "Cambiar a tema oscuro"}
-      className="relative flex size-9 items-center justify-center overflow-hidden rounded-full bg-surface-1 text-muted transition-colors hover:text-foreground hover:shadow-glow"
+      className={cn(
+        "relative flex size-9 items-center justify-center overflow-hidden rounded-full bg-surface-1 text-muted transition-colors hover:text-foreground hover:shadow-glow",
+        className
+      )}
     >
       <AnimatePresence mode="wait" initial={false}>
         <motion.span

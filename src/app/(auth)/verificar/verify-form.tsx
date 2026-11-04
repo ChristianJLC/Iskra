@@ -5,6 +5,7 @@ import { Mail } from "lucide-react";
 import { verifyAccount } from "@/actions/auth";
 import { Input, Label, FieldError } from "@/components/ui/input";
 import { SubmitButton } from "@/components/submit-button";
+import { authInputClass } from "../input-styles";
 
 export function VerifyForm({ email }: { email?: string }) {
   const [state, action] = useActionState(verifyAccount, undefined);
@@ -22,6 +23,7 @@ export function VerifyForm({ email }: { email?: string }) {
             type="email"
             placeholder="tu@correo.com"
             icon={<Mail className="size-4" />}
+            className={authInputClass}
             required
           />
           <FieldError messages={state?.errors?.email} />
@@ -36,7 +38,7 @@ export function VerifyForm({ email }: { email?: string }) {
           inputMode="numeric"
           maxLength={6}
           placeholder="000000"
-          className="text-center text-lg font-semibold tracking-[0.5em]"
+          className={`${authInputClass} text-center text-lg font-semibold tracking-[0.5em]`}
           required
         />
         <FieldError messages={state?.errors?.code} />
@@ -44,7 +46,7 @@ export function VerifyForm({ email }: { email?: string }) {
 
       {state?.message && <p className="text-sm text-danger">{state.message}</p>}
 
-      <SubmitButton className="w-full" variant="gradient">
+      <SubmitButton className="h-12 w-full" variant="solid" pendingLabel="Verificando…" whileHover={{ y: -2 }}>
         Verificar cuenta
       </SubmitButton>
     </form>

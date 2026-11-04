@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
+import { Camera } from "lucide-react";
 import { addMeal } from "@/actions/meals";
 import { analyzeMealPhoto } from "@/actions/analyze-meal-photo";
 import { recalculateIngredients } from "@/actions/recalculate-ingredients";
@@ -153,6 +154,8 @@ export function AddMealForm({
 
   return (
     <form action={handleSubmit} className="space-y-4">
+      <input type="hidden" name="type" value={type} />
+
       {isAnalyzing ? (
         <Card className="flex flex-col items-center gap-3 py-8">
           <AnalyzingSpinner className="size-12" />
@@ -172,14 +175,13 @@ export function AddMealForm({
             options={INPUT_MODE_OPTIONS}
             value={inputMode}
             onChange={setInputMode}
+            className="bg-surface"
           />
 
           {inputMode === "FOTO" ? (
             <div>
-              <Label>Foto de la comida</Label>
-              <Button
+              <button
                 type="button"
-                variant="secondary"
                 disabled={remaining <= 0}
                 onClick={() => {
                   if (supportsLiveCamera()) {
@@ -188,9 +190,14 @@ export function AddMealForm({
                     fallbackFileInputRef.current?.click();
                   }
                 }}
+                className="group flex w-full flex-col items-center gap-2 rounded-2xl border border-dashed border-border bg-surface px-4 py-6 text-center transition-colors enabled:hover:border-foreground/40 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                Analizar
-              </Button>
+                <span className="flex size-12 items-center justify-center rounded-full bg-foreground text-background transition-transform duration-200 motion-safe:group-enabled:group-hover:-translate-y-0.5">
+                  <Camera className="size-5" />
+                </span>
+                <span className="text-sm font-medium text-foreground">Tomar foto de tu comida</span>
+                <span className="text-xs text-muted">Calculamos las calorías y los macros por ti</span>
+              </button>
               <input
                 ref={fallbackFileInputRef}
                 type="file"
@@ -203,7 +210,7 @@ export function AddMealForm({
                   if (file) handleCapturedPhoto(file);
                 }}
               />
-              <p className="mt-1 text-xs text-muted">
+              <p className="mt-2 text-center text-xs text-muted">
                 {remaining > 0
                   ? `Te quedan ${remaining} de ${DAILY_PHOTO_LIMIT} fotos por analizar hoy.`
                   : `Llegaste al límite de ${DAILY_PHOTO_LIMIT} fotos analizadas hoy. Cambia a "Texto".`}
@@ -221,12 +228,12 @@ export function AddMealForm({
               />
               <Button
                 type="button"
-                variant="secondary"
-                className="mt-2 w-full"
+                variant="solid"
+                className="mt-2 h-11 w-full"
                 disabled={!textDraft.trim()}
                 onClick={handleAnalyzeText}
               >
-                Analizar
+                Calcular calorías
               </Button>
               <FieldError messages={analysisError ? [analysisError] : undefined} />
             </div>
@@ -242,9 +249,11 @@ export function AddMealForm({
         <CameraCapture onCapture={handleCapturedPhoto} onClose={() => setShowCamera(false)} />
       )}
 
-      <input type="hidden" name="type" value={type} />
-
-      <SubmitButton disabled={!hasResult}>Agregar comida</SubmitButton>
+      {hasResult && !isAnalyzing && (
+        <SubmitButton className="h-11 w-full" variant="solid" pendingLabel="Agregando…">
+          Agregar comida
+        </SubmitButton>
+      )}
     </form>
   );
 }

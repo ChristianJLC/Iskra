@@ -1,106 +1,33 @@
-import { Utensils, Dumbbell, BookOpen, ListChecks, Wallet } from "lucide-react";
-import { prisma } from "@/lib/prisma";
-import { verifySession, getCurrentUser } from "@/lib/dal";
-import { startOfToday, endOfToday, formatDateEs, getMonthBounds, getZonedCalendarDate } from "@/lib/date";
-import { ensureQuincenaIngresos } from "@/lib/finance";
-import { getTodayWorkout, formatMuscleGroups } from "@/lib/exercise";
-import { effectiveMinutes } from "@/lib/study";
-import { DashboardCardsGrid } from "@/components/dashboard-cards";
+import { Suspense } from "react";
+import { getCurrentUser } from "@/lib/dal";
+import { formatDateEs } from "@/lib/date";
+import { getResumen } from "@/lib/resumen";
+import { ResumenDashboard, ResumenSkeleton } from "@/components/resumen-dashboard";
 import { UserAvatar } from "@/components/user-avatar";
 
-const currency = new Intl.NumberFormat("es-PE", { style: "currency", currency: "PEN" });
+async function ResumenContent({ userId, timezone }: { userId: string; timezone: string }) {
+  const data = await getResumen(userId, timezone);
+  return <ResumenDashboard data={data} />;
+}
 
 export default async function ResumenPage() {
-  const { userId } = await verifySession();
   const user = await getCurrentUser();
-  const timezone = user.timezone;
-
-  await ensureQuincenaIngresos(userId, timezone);
-
-  const today = { gte: startOfToday(timezone), lt: endOfToday(timezone) };
-  const { year, month } = getZonedCalendarDate(timezone);
-  const { start: monthStart, end: monthEnd } = getMonthBounds(timezone, month, year);
-
-  const [meals, todayWorkout, studies, pendingTasks, financeEntries] = await Promise.all([
-    prisma.mealEntry.findMany({ where: { userId, date: today } }),
-    getTodayWorkout(userId, timezone),
-    prisma.studyEntry.findMany({ where: { userId, date: today } }),
-    prisma.task.count({ where: { userId, completed: false } }),
-    prisma.financeEntry.findMany({ where: { userId, date: { gte: monthStart, lt: monthEnd } } }),
-  ]);
-
-  const mealsCompleted = meals.filter((m) => m.completed).length;
-  const studyTarget = studies.reduce((sum, s) => sum + s.targetMinutes, 0);
-  const studyActual = studies.reduce((sum, s) => sum + effectiveMinutes(s), 0);
-
-  const ingresos = financeEntries
-    .filter((e) => e.type === "INGRESO")
-    .reduce((sum, e) => sum + Number(e.amount), 0);
-  const extras = financeEntries
-    .filter((e) => e.type === "EXTRA")
-    .reduce((sum, e) => sum + Number(e.amount), 0);
-  const gastos = financeEntries
-    .filter((e) => e.type === "GASTO")
-    .reduce((sum, e) => sum + Number(e.amount), 0);
-  const balance = ingresos + extras - gastos;
-
-  const cards = [
-    {
-      href: "/comidas",
-      icon: <Utensils className="size-5" />,
-      title: "Nutrición",
-      value: `${mealsCompleted}/${meals.length || 0}`,
-      hint: meals.length ? "completadas hoy" : "sin registros hoy",
-    },
-    {
-      href: "/ejercicio",
-      icon: <Dumbbell className="size-5" />,
-      title: "Ejercicio",
-      value:
-        todayWorkout.groups.length === 0
-          ? "Descanso"
-          : todayWorkout.completed
-            ? "Completado"
-            : "Pendiente",
-      hint:
-        todayWorkout.groups.length === 0 ? "hoy no toca rutina" : formatMuscleGroups(todayWorkout.groups),
-    },
-    {
-      href: "/estudio",
-      icon: <BookOpen className="size-5" />,
-      title: "Estudio",
-      value: studyTarget ? `${studyActual}/${studyTarget} min` : "Sin meta",
-      hint: "de tu meta de hoy",
-    },
-    {
-      href: "/organizacion",
-      icon: <ListChecks className="size-5" />,
-      title: "Organización",
-      value: `${pendingTasks}`,
-      hint: "tareas pendientes",
-    },
-    {
-      href: "/finanzas",
-      icon: <Wallet className="size-5" />,
-      title: "Finanzas",
-      value: currency.format(balance),
-      hint: "balance del mes",
-    },
-  ];
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
-      <div className="flex items-center gap-3">
+    <div className="mx-auto max-w-6xl space-y-6">
+      <div className="reveal flex items-center gap-3">
         <UserAvatar avatarId={user.avatarId} size={48} />
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-foreground">
-            {user.name.split(" ")[0]}
+            Hola, {user.name.split(" ")[0]}
           </h1>
-          <p className="text-sm text-muted">{formatDateEs(new Date(), timezone)}</p>
+          <p className="text-sm text-muted">{formatDateEs(new Date(), user.timezone)}</p>
         </div>
       </div>
 
-      <DashboardCardsGrid cards={cards} />
+      <Suspense fallback={<ResumenSkeleton />}>
+        <ResumenContent userId={user.id} timezone={user.timezone} />
+      </Suspense>
     </div>
   );
 }

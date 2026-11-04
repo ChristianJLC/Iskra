@@ -27,24 +27,25 @@ export function SavedMealPicker({
   if (savedMeals.length === 0) return null;
 
   return (
-    <div className="relative">
+    <div>
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center justify-between rounded-xl bg-surface-2 px-3 py-2 text-sm text-muted transition-colors hover:text-foreground"
+        aria-expanded={open}
+        className="flex h-11 w-full items-center justify-between rounded-xl bg-surface px-3 text-sm text-muted transition-colors hover:text-foreground"
       >
         Usar una comida guardada
         <ChevronDown className={`size-4 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
 
-      <AnimatePresence>
+      <AnimatePresence initial={false}>
         {open && (
           <motion.ul
-            initial={{ opacity: 0, y: -6, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -6, scale: 0.98 }}
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.15 }}
-            className="glass absolute z-10 mt-1 max-h-56 w-full overflow-y-auto rounded-xl shadow-soft"
+            className="mt-1 max-h-56 overflow-y-auto rounded-xl bg-surface"
           >
             {savedMeals.map((meal) => (
               <li key={meal.id}>

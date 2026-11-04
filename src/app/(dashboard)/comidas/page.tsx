@@ -85,43 +85,49 @@ export default async function ComidasPage() {
       : null;
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
-      <div className="flex items-start justify-between">
+    <div className="mx-auto max-w-6xl space-y-6">
+      <div className="reveal flex items-start justify-between gap-3">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-foreground">Nutrición</h1>
           <p className="text-sm text-muted">{formatDateEs(new Date(), timezone)}</p>
         </div>
         <Link
           href="/comidas/alimentos"
-          className="flex items-center gap-1 text-sm text-muted hover:text-foreground"
+          className="flex h-10 shrink-0 items-center gap-1 rounded-full bg-surface-2 pr-2.5 pl-3.5 text-sm font-medium text-foreground transition-colors hover:bg-surface-hover"
         >
           Mis alimentos
           <ChevronRight className="size-4" />
         </Link>
       </div>
 
-      <NutritionSummary
-        consumed={totals}
-        target={target}
-        hasMeals={meals.length > 0}
-        allCompleted={meals.length > 0 && meals.every((m) => m.completed)}
-      />
-
-      <StreakCard streak={streak} emptyLabel="Empieza tu racha nutricional hoy" />
-
-      <div className="space-y-4">
-        {MEAL_TYPES.map((type) => (
-          <MealTypeCard
-            key={type}
-            type={type}
-            label={MEAL_LABELS[type]}
-            meals={meals.filter((meal) => meal.type === type)}
-            remainingPhotos={Math.max(0, DAILY_PHOTO_LIMIT - photosUsedToday)}
-            savedMeals={savedMeals}
+      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]">
+        <div className="reveal [--i:1] lg:col-start-1">
+          <NutritionSummary
+            consumed={totals}
+            target={target}
+            hasMeals={meals.length > 0}
+            allCompleted={meals.length > 0 && meals.every((m) => m.completed)}
           />
-        ))}
+        </div>
 
-        <WaterCard glasses={waterGlasses} />
+        <div className="space-y-3 lg:col-start-2 lg:row-span-2 lg:row-start-1">
+          {MEAL_TYPES.map((type, index) => (
+            <div key={type} className="reveal" style={{ "--i": index + 2 } as React.CSSProperties}>
+              <MealTypeCard
+                type={type}
+                label={MEAL_LABELS[type]}
+                meals={meals.filter((meal) => meal.type === type)}
+                remainingPhotos={Math.max(0, DAILY_PHOTO_LIMIT - photosUsedToday)}
+                savedMeals={savedMeals}
+              />
+            </div>
+          ))}
+        </div>
+
+        <div className="reveal space-y-4 [--i:6] lg:col-start-1">
+          <WaterCard glasses={waterGlasses} />
+          <StreakCard streak={streak} emptyLabel="Empieza tu racha nutricional hoy" />
+        </div>
       </div>
     </div>
   );

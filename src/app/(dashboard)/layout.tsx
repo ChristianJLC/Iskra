@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { Settings } from "lucide-react";
 import { getCurrentUser } from "@/lib/dal";
-import { SidebarNav, BottomNav } from "@/components/nav-links";
+import { AppSidebar } from "@/components/app-sidebar";
+import { IskraMark } from "@/components/iskra-logo";
+import { BottomNav } from "@/components/nav-links";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { LogoutButton } from "@/components/logout-button";
 import { TimezoneSync } from "@/components/timezone-sync";
 import { AnnouncementModal } from "@/components/announcement-modal";
 import { resolveAccentStyle } from "@/lib/accent-color";
@@ -24,24 +25,14 @@ export default async function DashboardLayout({
         announcementId={CURRENT_ANNOUNCEMENT_ID}
         alreadySeen={user.lastSeenAnnouncement === CURRENT_ANNOUNCEMENT_ID}
       />
-      <aside className="hidden md:flex md:w-64 md:flex-col md:border-r md:border-border md:bg-surface-1 md:px-4 md:py-6">
-        <div className="mb-6 px-2">
-          <p className="text-lg font-bold tracking-tight text-foreground">Iskra</p>
-          <p className="truncate text-xs text-muted">{user.name}</p>
-        </div>
+      <AppSidebar />
 
-        <div className="flex-1">
-          <SidebarNav />
-        </div>
-
-        <div className="space-y-1 border-t border-border pt-3">
-          <LogoutButton />
-        </div>
-      </aside>
-
-      <div className="flex min-h-screen flex-1 flex-col">
-        <header className="sticky top-0 z-20 flex items-center justify-between border-b border-border/60 bg-background/70 px-4 py-3 backdrop-blur-xl md:justify-end md:px-8">
-          <p className="text-lg font-bold tracking-tight text-foreground md:hidden">Iskra</p>
+      <div className="flex min-h-screen min-w-0 flex-1 flex-col">
+        <header className="sticky top-0 z-20 flex items-center justify-between border-b border-border/60 bg-background/70 px-4 py-3 backdrop-blur-xl md:hidden">
+          <div className="flex items-center gap-2">
+            <IskraMark className="size-8" />
+            <p className="text-lg font-bold tracking-tight text-foreground">Iskra</p>
+          </div>
           <div className="flex items-center gap-2">
             <ThemeToggle />
             <Link

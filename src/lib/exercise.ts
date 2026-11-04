@@ -10,9 +10,51 @@ import {
   daysInMonth,
   type CalendarDate,
 } from "@/lib/date";
+import { MUSCLE_GROUP_OPTIONS } from "@/lib/routine-groups";
 import type { MuscleGroup, WorkoutSchedule } from "@/generated/prisma/client";
 
 export { MUSCLE_GROUP_LABELS, formatMuscleGroups } from "@/lib/routine-groups";
+
+export const EDITABLE_DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday"] as const;
+
+export type EditableDay = (typeof EDITABLE_DAYS)[number];
+
+function sanitizeGroups(groups: MuscleGroup[]): MuscleGroup[] {
+  return groups.filter((group) => MUSCLE_GROUP_OPTIONS.includes(group));
+}
+
+export async function saveWorkoutSchedule(userId: string, days: Record<EditableDay, MuscleGroup[]>) {
+  const data = Object.fromEntries(
+    EDITABLE_DAYS.map((day) => [day, sanitizeGroups(days[day] ?? [])])
+  ) as Record<EditableDay, MuscleGroup[]>;
+
+  await prisma.workoutSchedule.upsert({
+    where: { userId },
+    update: { ...data, sunday: [] },
+    create: { userId, ...data, sunday: [] },
+  });
+}
+
+/** Returns true if the day was newly marked as done (false if it was a rest day or already marked). */
+export async function markWorkoutDone(userId: string, timezone: string, cal: CalendarDate) {
+  const date = calendarDateToUtc(timezone, cal);
+  const schedule = await prisma.workoutSchedule.findUnique({ where: { userId } });
+  const groups = getScheduledGroups(schedule, cal);
+  if (groups.length === 0) return false;
+
+  const exists = await prisma.workoutCompletion.findUnique({
+    where: { userId_date: { userId, date } },
+  });
+  if (exists) return false;
+
+  await prisma.workoutCompletion.create({ data: { userId, date, groups } });
+  return true;
+}
+
+export async function unmarkWorkoutDone(userId: string, timezone: string, cal: CalendarDate) {
+  const date = calendarDateToUtc(timezone, cal);
+  await prisma.workoutCompletion.deleteMany({ where: { userId, date } });
+}
 
 export function getScheduledGroups(schedule: WorkoutSchedule | null, cal: CalendarDate): MuscleGroup[] {
   if (!schedule) return [];
@@ -45,19 +87,6 @@ export async function getCurrentWeekView(userId: string, timezone: string) {
       completed: completedDates.has(date.getTime()),
     };
   });
-}
-
-export async function getTodayWorkout(userId: string, timezone: string) {
-  const schedule = await prisma.workoutSchedule.findUnique({ where: { userId } });
-  const cal = getZonedCalendarDate(timezone);
-  const groups = getScheduledGroups(schedule, cal);
-  const date = calendarDateToUtc(timezone, cal);
-
-  const completion = await prisma.workoutCompletion.findUnique({
-    where: { userId_date: { userId, date } },
-  });
-
-  return { groups, completed: Boolean(completion) };
 }
 
 const STREAK_LOOKBACK_DAYS = 120;

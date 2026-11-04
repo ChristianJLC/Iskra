@@ -32,13 +32,13 @@ export function SegmentedControl<T extends string>({
             onClick={() => onChange(option.value)}
             className={cn(
               "relative flex-1 rounded-full px-3 py-1.5 text-sm font-medium transition-colors",
-              active ? "text-accent-foreground" : "text-muted hover:text-foreground"
+              active ? "text-background" : "text-muted hover:text-foreground"
             )}
           >
             {active && (
               <motion.div
                 layoutId={layoutId}
-                className="absolute inset-0 rounded-full bg-gradient-to-br from-accent to-accent-2 shadow-glow"
+                className="absolute inset-0 rounded-full bg-foreground shadow-soft"
                 transition={{ type: "spring", stiffness: 400, damping: 30 }}
               />
             )}

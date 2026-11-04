@@ -4,7 +4,7 @@ import { type ComponentProps } from "react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/cn";
 
-type Variant = "primary" | "secondary" | "ghost" | "danger" | "gradient";
+type Variant = "primary" | "secondary" | "ghost" | "danger" | "gradient" | "solid";
 type MotionButtonProps = ComponentProps<typeof motion.button>;
 
 const variants: Record<Variant, string> = {
@@ -13,9 +13,10 @@ const variants: Record<Variant, string> = {
   secondary:
     "bg-surface border border-border text-foreground hover:bg-surface-hover",
   ghost: "text-muted hover:text-foreground hover:bg-surface-hover",
-  danger: "bg-danger text-white hover:opacity-90",
+  danger: "bg-danger text-background hover:opacity-90",
   gradient:
     "bg-gradient-to-br from-accent to-accent-2 text-accent-foreground shadow-glow hover:opacity-90 disabled:opacity-50",
+  solid: "bg-foreground text-background shadow-soft hover:opacity-90 disabled:opacity-50",
 };
 
 export function Button({

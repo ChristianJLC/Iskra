@@ -104,7 +104,7 @@ export function MealAnalysisResult({
           <ul className="space-y-2">
             {ingredients.map((ingredient, i) => (
               <li key={`${ingredient.name}-${i}`} className="flex items-center gap-3">
-                <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-accent to-accent-2 text-white">
+                <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-surface-2 text-muted">
                   <Utensils className="size-4" />
                 </div>
                 <p className="min-w-0 flex-1 truncate text-sm text-foreground">{ingredient.name}</p>
@@ -138,7 +138,7 @@ export function MealAnalysisResult({
                 onClick={addIngredients}
                 disabled={isCalculating || !draft.trim()}
                 className={cn(
-                  "flex-1 rounded-xl bg-gradient-to-br from-accent to-accent-2 px-3 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90",
+                  "flex-1 rounded-xl bg-foreground px-3 py-2 text-sm font-medium text-background transition-opacity hover:opacity-90",
                   (isCalculating || !draft.trim()) && "cursor-not-allowed opacity-50"
                 )}
               >

@@ -42,7 +42,7 @@ export function AnnouncementModal({
             className="w-full max-w-sm"
           >
             <Card variant="glass" className="space-y-4">
-              <div className="flex size-11 items-center justify-center rounded-2xl bg-gradient-to-br from-accent to-accent-2 text-white shadow-glow">
+              <div className="flex size-11 items-center justify-center rounded-2xl bg-gradient-to-br from-accent to-accent-2 text-accent-foreground shadow-glow">
                 <Sparkles className="size-5" />
               </div>
 

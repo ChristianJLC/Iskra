@@ -1,7 +1,8 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
-import { getMonthBounds, daysInMonth, getZonedCalendarDate, calendarDateToUtc } from "@/lib/date";
+import { formatShortDateEs, getMonthBounds, daysInMonth, getZonedCalendarDate } from "@/lib/date";
+import { resolveInstallment } from "@/lib/finance-summary";
 
 type FinanceAmountEntry = {
   type: string;
@@ -77,81 +78,32 @@ export async function getBillsWithState(userId: string, timezone: string) {
   const [bills, payments] = await Promise.all([
     prisma.recurringBill.findMany({ where: { userId } }),
     prisma.financeEntry.findMany({
-      where: { userId, date: { gte: start, lt: end }, recurringBillId: { not: null } },
-      select: { recurringBillId: true },
+      where: { userId, recurringBillId: { not: null } },
+      select: { recurringBillId: true, date: true },
     }),
   ]);
 
-  const paidBillIds = new Set(payments.map((p) => p.recurringBillId));
+  const paidThisMonth = new Map<string | null, Date>();
+  const totalPaid = new Map<string | null, number>();
+  for (const { recurringBillId, date } of payments) {
+    totalPaid.set(recurringBillId, (totalPaid.get(recurringBillId) ?? 0) + 1);
+    if (date >= start && date < end) paidThisMonth.set(recurringBillId, date);
+  }
 
   return bills
     .map((bill) => {
-      const paid = paidBillIds.has(bill.id);
-      return { ...bill, paid, state: getBillState(bill, today, paid, monthDayCount) };
+      const paidDate = paidThisMonth.get(bill.id);
+      const paid = Boolean(paidDate);
+      const installment = resolveInstallment(bill.installments, totalPaid.get(bill.id) ?? 0, paid);
+      return {
+        ...bill,
+        paid,
+        paidOn: paidDate ? formatShortDateEs(paidDate, timezone) : null,
+        finished: installment.finished,
+        installmentLabel: installment.label,
+        state: getBillState(bill, today, paid, monthDayCount),
+      };
     })
+    .filter((bill) => !bill.finished)
     .sort((a, b) => PRIORITY_WEIGHT[a.priority] - PRIORITY_WEIGHT[b.priority] || a.startDay - b.startDay);
-}
-
-export async function ensureQuincenaIngresos(userId: string, timezone: string) {
-  const { year, month, day: currentDay } = getZonedCalendarDate(timezone);
-
-  let settings = await prisma.financeSettings.findUnique({
-    where: { userId_month_year: { userId, month, year } },
-  });
-
-  if (!settings) {
-    const previous = await prisma.financeSettings.findFirst({
-      where: { userId, OR: [{ year: { lt: year } }, { year, month: { lt: month } }] },
-      orderBy: [{ year: "desc" }, { month: "desc" }],
-    });
-
-    if (previous) {
-      settings = await prisma.financeSettings.create({
-        data: {
-          userId,
-          month,
-          year,
-          biweeklyIncome: previous.biweeklyIncome,
-          incomeFrequency: previous.incomeFrequency,
-        },
-      });
-    }
-  }
-
-  const monthlyIncome = settings ? Number(settings.biweeklyIncome) : 0;
-  if (monthlyIncome <= 0) return;
-
-  const isMonthly = settings?.incomeFrequency === "MENSUAL";
-  const dueDays = isMonthly ? [1] : currentDay >= 16 ? [1, 16] : [1];
-  const totalDays = daysInMonth(month, year);
-
-  for (const day of dueDays) {
-    const date = calendarDateToUtc(timezone, { year, month, day });
-    const nextDay = new Date(date.getTime() + 24 * 60 * 60 * 1000);
-
-    const exists = await prisma.financeEntry.findFirst({
-      where: { userId, type: "INGRESO", date: { gte: date, lt: nextDay } },
-    });
-
-    if (!exists) {
-      const daysInPeriod = day === 1 ? 15 : totalDays - 15;
-      const amount = isMonthly
-        ? monthlyIncome
-        : Math.round((monthlyIncome / totalDays) * daysInPeriod * 100) / 100;
-
-      await prisma.financeEntry.create({
-        data: {
-          userId,
-          type: "INGRESO",
-          amount,
-          date,
-          description: isMonthly
-            ? "Pago mensual"
-            : day === 1
-              ? "Pago quincenal (1-15)"
-              : "Pago quincenal (16-fin de mes)",
-        },
-      });
-    }
-  }
 }

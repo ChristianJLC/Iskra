@@ -8,9 +8,9 @@ export default async function VerifyPage({
   const { email } = await searchParams;
 
   return (
-    <div>
-      <h1 className="text-2xl font-semibold text-foreground">Verifica tu cuenta</h1>
-      <p className="mt-1 text-sm text-muted">
+    <div className="reveal">
+      <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">Verifica tu cuenta</h1>
+      <p className="mt-2 text-sm text-muted">
         {email ? (
           <>
             Te enviamos una solicitud de verificación. Ingresa el código de 6 dígitos que te pasó el

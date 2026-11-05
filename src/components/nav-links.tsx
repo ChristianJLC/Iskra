@@ -80,7 +80,7 @@ export function BottomNav() {
             key={href}
             href={href}
             aria-label={label}
-            className="relative flex flex-col items-center gap-0.5 rounded-xl px-2 py-1.5 text-[10px] font-medium"
+            className="relative flex flex-col items-center gap-0.5 rounded-xl px-2 py-1.5 text-[10px] font-medium outline-offset-2 transition-transform focus-visible:outline-2 focus-visible:outline-accent active:scale-95 motion-reduce:active:scale-100"
           >
             {active && (
               <motion.div

@@ -234,6 +234,10 @@ model StudySubject {
   user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   name          String
   targetMinutes Int
+  /// Días en que toca la materia: 0 = domingo … 6 = sábado (igual que Date.getDay()).
+  weekdays      Int[]        @default([])
+  /// Desde cuándo rige el plan actual; los días anteriores no cuentan como faltas.
+  scheduledFrom DateTime     @default(now())
   createdAt     DateTime     @default(now())
   entries       StudyEntry[]
 

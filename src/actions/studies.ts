@@ -1,10 +1,29 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { verifySession, getUserTimezone } from "@/lib/dal";
 import { startOfToday, endOfToday } from "@/lib/date";
-import { effectiveSeconds } from "@/lib/study";
+import { effectiveSeconds, stoppedTimerData } from "@/lib/study";
+
+const EXTEND_MINUTES = 15;
+
+const subjectSchema = z.object({
+  name: z.string().trim().min(1, "Escribe el nombre de la materia.").max(60, "Usa un nombre de hasta 60 caracteres."),
+  targetMinutes: z.coerce
+    .number()
+    .int("Usa minutos enteros.")
+    .min(5, "La sesión debe durar al menos 5 minutos.")
+    .max(480, "La sesión no puede pasar de 8 horas."),
+  weekdays: z.array(z.coerce.number().int().min(0).max(6)),
+});
+
+const logSchema = z.coerce
+  .number()
+  .int("Usa minutos enteros.")
+  .min(1, "Escribe cuántos minutos estudiaste.")
+  .max(600, "Registra hasta 10 horas a la vez.");
 
 function revalidateStudy() {
   revalidatePath("/estudio");
@@ -12,51 +31,32 @@ function revalidateStudy() {
   revalidatePath("/");
 }
 
-export async function createSubjectAndAddToday(formData: FormData) {
-  const { userId } = await verifySession();
-  const timezone = await getUserTimezone();
-
-  const name = (formData.get("name") as string)?.trim();
-  const targetMinutes = Number(formData.get("targetMinutes"));
-
-  if (!name || !targetMinutes || targetMinutes <= 0) return;
-
-  const subject = await prisma.studySubject.upsert({
-    where: { userId_name: { userId, name } },
-    update: { targetMinutes },
-    create: { userId, name, targetMinutes },
-  });
-
-  const existing = await prisma.studyEntry.findFirst({
-    where: { userId, subjectId: subject.id, date: { gte: startOfToday(timezone), lt: endOfToday(timezone) } },
-  });
-  if (!existing) {
-    await prisma.studyEntry.create({
-      data: {
-        userId,
-        subjectId: subject.id,
-        subjectName: subject.name,
-        targetMinutes: subject.targetMinutes,
-      },
-    });
-  }
-
-  revalidateStudy();
+function todayRange(timezone: string) {
+  return { gte: startOfToday(timezone), lt: endOfToday(timezone) };
 }
 
-export async function addTodayEntryFromSubject(subjectId: string) {
-  const { userId } = await verifySession();
-  const timezone = await getUserTimezone();
+/** Solo un temporizador corre a la vez: empezar uno detiene los demás. */
+async function stopRunningTimers(userId: string, exceptId?: string) {
+  const running = await prisma.studyEntry.findMany({
+    where: { userId, runningSince: { not: null }, id: exceptId ? { not: exceptId } : undefined },
+  });
 
+  await Promise.all(
+    running.map((entry) => prisma.studyEntry.update({ where: { id: entry.id }, data: stoppedTimerData(entry) }))
+  );
+}
+
+async function getOrCreateTodayEntry(userId: string, subjectId: string) {
+  const timezone = await getUserTimezone();
   const subject = await prisma.studySubject.findFirst({ where: { id: subjectId, userId } });
-  if (!subject) return;
+  if (!subject) return null;
 
   const existing = await prisma.studyEntry.findFirst({
-    where: { userId, subjectId: subject.id, date: { gte: startOfToday(timezone), lt: endOfToday(timezone) } },
+    where: { userId, subjectId: subject.id, date: todayRange(timezone) },
   });
-  if (existing) return;
+  if (existing) return existing;
 
-  await prisma.studyEntry.create({
+  return prisma.studyEntry.create({
     data: {
       userId,
       subjectId: subject.id,
@@ -64,6 +64,76 @@ export async function addTodayEntryFromSubject(subjectId: string) {
       targetMinutes: subject.targetMinutes,
     },
   });
+}
+
+export async function saveSubject(id: string | null, formData: FormData): Promise<{ error: string } | undefined> {
+  const { userId } = await verifySession();
+  const timezone = await getUserTimezone();
+
+  const parsed = subjectSchema.safeParse({
+    name: formData.get("name"),
+    targetMinutes: formData.get("targetMinutes"),
+    weekdays: formData.getAll("weekdays"),
+  });
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+
+  const { name, targetMinutes } = parsed.data;
+  const weekdays = [...new Set(parsed.data.weekdays)].sort();
+
+  const duplicate = await prisma.studySubject.findFirst({
+    where: { userId, name: { equals: name, mode: "insensitive" }, id: id ? { not: id } : undefined },
+  });
+  if (duplicate) return { error: "Ya tienes una materia con ese nombre." };
+
+  if (!id) {
+    await prisma.studySubject.create({ data: { userId, name, targetMinutes, weekdays } });
+    revalidateStudy();
+    return;
+  }
+
+  const current = await prisma.studySubject.findFirst({ where: { id, userId } });
+  if (!current) return { error: "Esta materia ya no existe." };
+
+  const planChanged = current.weekdays.join() !== weekdays.join();
+  await prisma.studySubject.update({
+    where: { id },
+    data: { name, targetMinutes, weekdays, ...(planChanged && { scheduledFrom: new Date() }) },
+  });
+
+  // La sesión de hoy refleja la edición; las de días anteriores conservan su historia.
+  const todayEntry = await prisma.studyEntry.findFirst({
+    where: { userId, subjectId: id, date: todayRange(timezone) },
+  });
+  if (todayEntry) {
+    await prisma.studyEntry.update({
+      where: { id: todayEntry.id },
+      data: {
+        subjectName: name,
+        targetMinutes,
+        completed: effectiveSeconds({ ...todayEntry, targetMinutes }) >= targetMinutes * 60,
+      },
+    });
+  }
+
+  revalidateStudy();
+}
+
+export async function deleteSubject(id: string) {
+  const { userId } = await verifySession();
+
+  await prisma.studySubject.deleteMany({ where: { id, userId } });
+
+  revalidateStudy();
+}
+
+export async function startSubjectSession(subjectId: string) {
+  const { userId } = await verifySession();
+
+  const entry = await getOrCreateTodayEntry(userId, subjectId);
+  if (!entry || entry.completed || entry.runningSince) return;
+
+  await stopRunningTimers(userId, entry.id);
+  await prisma.studyEntry.update({ where: { id: entry.id }, data: { runningSince: new Date() } });
 
   revalidateStudy();
 }
@@ -72,12 +142,10 @@ export async function startTimer(entryId: string) {
   const { userId } = await verifySession();
 
   const entry = await prisma.studyEntry.findFirst({ where: { id: entryId, userId } });
-  if (!entry || entry.runningSince) return;
+  if (!entry || entry.completed || entry.runningSince) return;
 
-  await prisma.studyEntry.update({
-    where: { id: entryId },
-    data: { runningSince: new Date() },
-  });
+  await stopRunningTimers(userId, entry.id);
+  await prisma.studyEntry.update({ where: { id: entry.id }, data: { runningSince: new Date() } });
 
   revalidateStudy();
 }
@@ -88,14 +156,61 @@ export async function pauseTimer(entryId: string) {
   const entry = await prisma.studyEntry.findFirst({ where: { id: entryId, userId } });
   if (!entry || !entry.runningSince) return;
 
-  const accumulatedSeconds = effectiveSeconds(entry);
+  await prisma.studyEntry.update({ where: { id: entry.id }, data: stoppedTimerData(entry) });
+
+  revalidateStudy();
+}
+
+/** Amplía la meta de hoy para seguir estudiando después de cumplirla. */
+export async function extendStudy(entryId: string) {
+  const { userId } = await verifySession();
+
+  const entry = await prisma.studyEntry.findFirst({ where: { id: entryId, userId } });
+  if (!entry) return;
+
+  const studiedMinutes = Math.ceil(effectiveSeconds(entry) / 60);
+
+  await stopRunningTimers(userId, entry.id);
+  await prisma.studyEntry.update({
+    where: { id: entry.id },
+    data: {
+      accumulatedSeconds: effectiveSeconds(entry),
+      targetMinutes: Math.max(entry.targetMinutes, studiedMinutes) + EXTEND_MINUTES,
+      completed: false,
+      runningSince: new Date(),
+    },
+  });
+
+  revalidateStudy();
+}
+
+/** Suma tiempo estudiado sin el temporizador a la sesión de hoy. */
+export async function logStudyMinutes(
+  target: { entryId: string | null; subjectId: string | null },
+  formData: FormData
+): Promise<{ error: string } | undefined> {
+  const { userId } = await verifySession();
+
+  const minutes = logSchema.safeParse(formData.get("minutes"));
+  if (!minutes.success) return { error: minutes.error.issues[0].message };
+
+  const entry = target.entryId
+    ? await prisma.studyEntry.findFirst({ where: { id: target.entryId, userId } })
+    : target.subjectId
+      ? await getOrCreateTodayEntry(userId, target.subjectId)
+      : null;
+  if (!entry) return { error: "Esta materia ya no existe." };
+
+  const seconds = effectiveSeconds(entry) + minutes.data * 60;
+  const reachedTarget = seconds >= entry.targetMinutes * 60;
+  const keepRunning = Boolean(entry.runningSince) && !reachedTarget;
 
   await prisma.studyEntry.update({
-    where: { id: entryId },
+    where: { id: entry.id },
     data: {
-      accumulatedSeconds,
-      runningSince: null,
-      completed: Math.floor(accumulatedSeconds / 60) >= entry.targetMinutes,
+      accumulatedSeconds: seconds,
+      runningSince: keepRunning ? new Date() : null,
+      completed: reachedTarget,
     },
   });
 
@@ -106,14 +221,6 @@ export async function deleteStudy(id: string) {
   const { userId } = await verifySession();
 
   await prisma.studyEntry.deleteMany({ where: { id, userId } });
-
-  revalidateStudy();
-}
-
-export async function deleteSubject(id: string) {
-  const { userId } = await verifySession();
-
-  await prisma.studySubject.deleteMany({ where: { id, userId } });
 
   revalidateStudy();
 }

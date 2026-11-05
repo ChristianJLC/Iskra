@@ -5,6 +5,12 @@ import { prisma } from "@/lib/prisma";
 import { verifySession } from "@/lib/dal";
 import { TASK_CATEGORY_OPTIONS } from "@/lib/task-summary";
 
+function revalidateTasks() {
+  revalidatePath("/organizacion");
+  revalidatePath("/estudio");
+  revalidatePath("/");
+}
+
 function parseTaskFields(formData: FormData) {
   const title = (formData.get("title") as string)?.trim();
   const description = (formData.get("description") as string)?.trim();
@@ -33,8 +39,7 @@ export async function addTask(formData: FormData) {
 
   await prisma.task.create({ data: { userId, ...fields } });
 
-  revalidatePath("/organizacion");
-  revalidatePath("/");
+  revalidateTasks();
 }
 
 export async function updateTask(id: string, formData: FormData) {
@@ -45,8 +50,7 @@ export async function updateTask(id: string, formData: FormData) {
 
   await prisma.task.updateMany({ where: { id, userId }, data: fields });
 
-  revalidatePath("/organizacion");
-  revalidatePath("/");
+  revalidateTasks();
 }
 
 export async function toggleTask(id: string, completed: boolean) {
@@ -57,8 +61,7 @@ export async function toggleTask(id: string, completed: boolean) {
     data: { completed },
   });
 
-  revalidatePath("/organizacion");
-  revalidatePath("/");
+  revalidateTasks();
 }
 
 export async function deleteTask(id: string) {
@@ -66,6 +69,5 @@ export async function deleteTask(id: string) {
 
   await prisma.task.deleteMany({ where: { id, userId } });
 
-  revalidatePath("/organizacion");
-  revalidatePath("/");
+  revalidateTasks();
 }

@@ -5,7 +5,7 @@ import { getCurrentWeekView, getWorkoutStreak } from "@/lib/exercise";
 import { getBillsWithState, getMonthTotals } from "@/lib/finance";
 import { getNutritionStreak } from "@/lib/nutrition";
 import { buildResumen } from "@/lib/resumen-summary";
-import { effectiveMinutes } from "@/lib/study";
+import { getTodayStudyGoals } from "@/lib/study";
 import { getTodayGlasses } from "@/lib/water";
 
 export async function getResumen(userId: string, timezone: string) {
@@ -21,7 +21,7 @@ export async function getResumen(userId: string, timezone: string) {
       getNutritionStreak(userId, timezone),
       getCurrentWeekView(userId, timezone),
       getWorkoutStreak(userId, timezone),
-      prisma.studyEntry.findMany({ where: { userId, date: todayRange }, orderBy: { createdAt: "asc" } }),
+      getTodayStudyGoals(userId, timezone),
       prisma.task.findMany({ where: { userId, completed: false } }),
       prisma.financeEntry.findMany({ where: { userId, date: { gte: monthStart, lt: monthEnd } } }),
       getBillsWithState(userId, timezone),
@@ -62,14 +62,7 @@ export async function getResumen(userId: string, timezone: string) {
       week: week.map(({ cal, groups, completed }) => ({ cal, groups, completed })),
       streak: workoutStreak,
     },
-    studies: studies.map((s) => ({
-      id: s.id,
-      name: s.subjectName,
-      actualMinutes: effectiveMinutes(s),
-      targetMinutes: s.targetMinutes,
-      running: Boolean(s.runningSince),
-      completed: s.completed,
-    })),
+    studies,
     tasks: tasks.map((t) => ({ id: t.id, title: t.title, priority: t.priority, dueDate: t.dueDate })),
     finance: {
       ...getMonthTotals(entries),

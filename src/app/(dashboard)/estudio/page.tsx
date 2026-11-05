@@ -1,81 +1,33 @@
 import Link from "next/link";
-import { prisma } from "@/lib/prisma";
+import { ChevronRight } from "lucide-react";
 import { verifySession, getUserTimezone } from "@/lib/dal";
-import { startOfToday, endOfToday, formatDateEs } from "@/lib/date";
-import { effectiveSeconds } from "@/lib/study";
-import { deleteStudy } from "@/actions/studies";
-import { Card } from "@/components/ui/card";
-import { DeleteButton } from "@/components/delete-button";
-import { SubjectPicker } from "@/components/subject-picker";
-import { StudyTimer } from "@/components/study-timer";
-import { cn } from "@/lib/cn";
+import { formatDateEs, getZonedCalendarDate } from "@/lib/date";
+import { getStudyView } from "@/lib/study";
+import { calendarToIso } from "@/lib/task-summary";
+import { StudyDashboard } from "@/components/study-dashboard";
 
 export default async function EstudioPage() {
   const { userId } = await verifySession();
   const timezone = await getUserTimezone();
-
-  const [subjects, studies] = await Promise.all([
-    prisma.studySubject.findMany({ where: { userId }, orderBy: { createdAt: "asc" } }),
-    prisma.studyEntry.findMany({
-      where: { userId, date: { gte: startOfToday(timezone), lt: endOfToday(timezone) } },
-      orderBy: { createdAt: "asc" },
-    }),
-  ]);
-
-  const subjectIdsToday = new Set(studies.map((s) => s.subjectId));
+  const view = await getStudyView(userId, timezone);
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
-      <div className="flex items-start justify-between gap-3">
+    <div className="mx-auto max-w-6xl space-y-6">
+      <div className="reveal flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-foreground">Estudio</h1>
           <p className="text-sm text-muted">{formatDateEs(new Date(), timezone)}</p>
         </div>
-        <Link href="/estudio/historial" className="text-sm font-medium text-accent hover:underline">
-          Ver historial
+        <Link
+          href="/estudio/historial"
+          className="flex h-10 items-center gap-1 rounded-full bg-surface-2 pr-2.5 pl-3.5 text-sm font-medium text-foreground transition-colors hover:bg-surface-hover"
+        >
+          Historial
+          <ChevronRight className="size-4" />
         </Link>
       </div>
 
-      <Card>
-        <SubjectPicker
-          subjects={subjects.map((s) => ({
-            id: s.id,
-            name: s.name,
-            targetMinutes: s.targetMinutes,
-            addedToday: subjectIdsToday.has(s.id),
-          }))}
-        />
-      </Card>
-
-      <div className="space-y-3">
-        {studies.length === 0 && (
-          <p className="text-sm text-muted">Aún no tienes metas de estudio hoy.</p>
-        )}
-
-        {studies.map((entry) => (
-          <Card key={entry.id} className="space-y-3 py-4">
-            <div className="flex items-start justify-between gap-3">
-              <p
-                className={cn(
-                  "text-sm font-medium",
-                  entry.completed ? "text-muted line-through" : "text-foreground"
-                )}
-              >
-                {entry.subjectName}
-              </p>
-              <DeleteButton action={deleteStudy.bind(null, entry.id)} />
-            </div>
-
-            <StudyTimer
-              id={entry.id}
-              initialSeconds={effectiveSeconds(entry)}
-              isRunning={Boolean(entry.runningSince)}
-              targetMinutes={entry.targetMinutes}
-              completed={entry.completed}
-            />
-          </Card>
-        ))}
-      </div>
+      <StudyDashboard view={view} todayIso={calendarToIso(getZonedCalendarDate(timezone))} />
     </div>
   );
 }
